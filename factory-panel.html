@@ -1,406 +1,161 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel de Fábrica - KontrolGas</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+<script>
+        const SUPABASE_URL = 'https://sxmqctvehtxqsdsjtftg.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN4bXFjdHZlaHR4cXNkc2p0ZnRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY3MDg3NzksImV4cCI6MjA4MjI4NDc3OX0.XTksCLbn7gNT3a-afVJJ7EfSFqfCc620Kit63IxfX9M';
+
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        const alertContainer = document.getElementById('alertContainer');
+        const clientesContainer = document.getElementById('clientesContainer');
+
+        // Generar código aleatorio
+        function generateCode() {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let code = 'CLI';
+            for (let i = 0; i < 8; i++) {
+                code += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            document.getElementById('codigoCliente').value = code;
         }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
+        // Mostrar alerta
+        function showAlert(message, type = 'success') {
+            alertContainer.innerHTML = `<div class="alert alert-${type === 'success' ? 'success' : 'error'} show">${message}</div>`;
+            setTimeout(() => {
+                alertContainer.innerHTML = '';
+            }, 4000);
         }
 
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
+        // Validar dirección MAC
+        function validarMAC(mac) {
+            const regex = /^([0-9A-Fa-f]{2}:){5}([0-9A-Fa-f]{2})$/;
+            return regex.test(mac);
         }
 
-        .header {
-            text-align: center;
-            color: white;
-            margin-bottom: 40px;
+        // Registrar cliente en Supabase
+        async function registerClient(event) {
+            event.preventDefault();
+
+            const codigo = document.getElementById('codigoCliente').value.trim().toUpperCase();
+            const mac = document.getElementById('macEsp32').value.trim().toUpperCase();
+            const nombre = document.getElementById('nombreCliente').value.trim();
+
+            if (!/^CLI[A-Z0-9]{8}$/.test(codigo)) {
+                showAlert('❌ Código de cliente inválido. Debe ser CLI seguido de 8 caracteres alfanuméricos.', 'error');
+                return;
+            }
+
+            if (!validarMAC(mac)) {
+                showAlert('❌ MAC ESP32 inválida. Debe tener el formato AA:BB:CC:DD:EE:FF.', 'error');
+                return;
+            }
+
+            // Verificar si ya existe código
+            const { data: existingCode } = await supabase
+                .from('clientes')
+                .select('id')
+                .eq('codigo_cliente', codigo)
+                .maybeSingle();
+
+            if (existingCode) {
+                showAlert('❌ El código de cliente ya existe.', 'error');
+                return;
+            }
+
+            // Verificar si ya existe MAC
+            const { data: existingMac } = await supabase
+                .from('clientes')
+                .select('id')
+                .eq('mac_esp32', mac)
+                .maybeSingle();
+
+            if (existingMac) {
+                showAlert('❌ La MAC ESP32 ya está registrada.', 'error');
+                return;
+            }
+
+            // Insertar cliente
+            const { error } = await supabase
+                .from('clientes')
+                .insert([
+                    { 
+                        codigo_cliente: codigo, 
+                        mac_esp32: mac, 
+                        nombre: nombre || null, 
+                        estado: 'activo' 
+                    }
+                ]);
+
+            if (error) {
+                console.error('Error completo:', error);
+                showAlert('❌ Error registrando cliente: ' + error.message, 'error');
+            } else {
+                showAlert('✅ Cliente registrado con éxito.');
+                document.getElementById('registerForm').reset();
+                cargarClientes();
+            }
         }
 
-        .header h1 {
-            font-size: 48px;
-            margin-bottom: 10px;
+        // Cargar lista de clientes
+        async function cargarClientes() {
+            console.log('🔄 Cargando clientes...');
+            clientesContainer.innerHTML = '<div class="loading">Cargando...</div>';
+
+            try {
+                const { data, error } = await supabase
+                    .from('clientes')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                console.log('Datos recibidos:', data);
+                console.log('Error:', error);
+
+                if (error) {
+                    console.error('Error completo:', error);
+                    clientesContainer.innerHTML = `<div class="alert alert-error show">❌ Error cargando clientes: ${error.message}</div>`;
+                    return;
+                }
+
+                if (!data || data.length === 0) {
+                    clientesContainer.innerHTML = '<p style="text-align:center; padding:20px; color:#666;">No hay clientes registrados.</p>';
+                    return;
+                }
+
+                // Tabla HTML
+                let html = `<div class="table-container"><table>
+                    <thead>
+                        <tr>
+                            <th>Código Cliente</th>
+                            <th>MAC ESP32</th>
+                            <th>Nombre</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead><tbody>`;
+
+                data.forEach(cliente => {
+                    html += `<tr>
+                        <td><strong>${cliente.codigo_cliente}</strong></td>
+                        <td><code>${cliente.mac_esp32}</code></td>
+                        <td>${cliente.nombre || '-'}</td>
+                        <td><span class="badge ${cliente.estado === 'activo' ? 'badge-active' : 'badge-inactive'}">${cliente.estado}</span></td>
+                    </tr>`;
+                });
+
+                html += '</tbody></table></div>';
+
+                clientesContainer.innerHTML = html;
+                console.log('✅ Clientes cargados correctamente');
+
+            } catch (e) {
+                console.error('Excepción:', e);
+                clientesContainer.innerHTML = `<div class="alert alert-error show">❌ Error inesperado: ${e.message}</div>`;
+            }
         }
 
-        .header p {
-            font-size: 18px;
-            opacity: 0.9;
-        }
-
-        .card {
-            background: white;
-            border-radius: 20px;
-            padding: 30px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            margin-bottom: 30px;
-        }
-
-        .card-title {
-            font-size: 24px;
-            font-weight: 600;
-            margin-bottom: 20px;
-            color: #333;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-label {
-            display: block;
-            font-size: 14px;
-            font-weight: 600;
-            color: #555;
-            margin-bottom: 8px;
-        }
-
-        .form-input {
-            width: 100%;
-            padding: 12px 15px;
-            border: 2px solid #e0e0e0;
-            border-radius: 10px;
-            font-size: 16px;
-            transition: border-color 0.3s;
-        }
-
-        .form-input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        .btn {
-            width: 100%;
-            padding: 15px;
-            border: none;
-            border-radius: 10px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
-        }
-
-        .btn-generate {
-            background: #10b981;
-            color: white;
-            margin-bottom: 15px;
-        }
-
-        .btn-generate:hover {
-            background: #059669;
-        }
-
-        .alert {
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            display: none;
-        }
-
-        .alert.show {
-            display: block;
-        }
-
-        .alert-success {
-            background: #d1fae5;
-            border: 1px solid #10b981;
-            color: #065f46;
-        }
-
-        .alert-error {
-            background: #fee2e2;
-            border: 1px solid #ef4444;
-            color: #991b1b;
-        }
-
-        .table-container {
-            overflow-x: auto;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        th, td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #e0e0e0;
-        }
-
-        th {
-            background: #f8f9fa;
-            font-weight: 600;
-            color: #333;
-        }
-
-        .badge {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-
-        .badge-active {
-            background: #d1fae5;
-            color: #065f46;
-        }
-
-        .badge-inactive {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: #666;
-        }
-
-        .btn-delete {
-            background: #ef4444;
-            color: white;
-            padding: 6px 12px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 12px;
-        }
-
-        .btn-delete:hover {
-            background: #dc2626;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>🏭 Panel de Fábrica</h1>
-            <p>KontrolGas - Registro de Clientes</p>
-        </div>
-
-        <!-- Formulario de Registro -->
-        <div class="card">
-            <div class="card-title">📝 Registrar Nuevo Cliente</div>
-
-            <div id="alertContainer"></div>
-
-            <button class="btn btn-generate" onclick="generateCode()">
-                🎲 Generar Código Automático
-            </button>
-
-            <form id="registerForm" onsubmit="registerClient(event)">
-                <div class="form-group">
-                    <label class="form-label">Código de Cliente</label>
-                    <input 
-                        type="text" 
-                        id="codigoCliente" 
-                        class="form-input" 
-                        placeholder="CLI12AB34CD"
-                        pattern="CLI[A-Z0-9]{8}"
-                        maxlength="11"
-                        required
-                    >
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">MAC ESP32</label>
-                    <input 
-                        type="text" 
-                        id="macEsp32" 
-                        class="form-input" 
-                        placeholder="A4:CF:12:34:56:78"
-                        pattern="[A-Fa-f0-9:]{17}"
-                        maxlength="17"
-                        required
-                    >
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">Nombre (Opcional)</label>
-                    <input 
-                        type="text" 
-                        id="nombreCliente" 
-                        class="form-input" 
-                        placeholder="Nombre del cliente"
-                    >
-                </div>
-
-                <button type="submit" class="btn btn-primary">
-                    ✅ Registrar Cliente
-                </button>
-            </form>
-        </div>
-
-        <!-- Lista de Clientes -->
-        <div class="card">
-            <div class="card-title">📋 Clientes Registrados</div>
-            <div id="clientesContainer">
-                <div class="loading">Cargando...</div>
-            </div>
-        </div>
-    </div>
-    <script>
-    const SUPABASE_URL = 'https://sxmqctvehtxqsdsjtftg.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN4bXFjdHZlaHR4cXNkc2p0ZnRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY3MDg3NzksImV4cCI6MjA4MjI4NDc3OX0.XTksCLbn7gNT3a-afVJJ7EfSFqfCc620Kit63IxfX9M';
-
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-    const alertContainer = document.getElementById('alertContainer');
-    const clientesContainer = document.getElementById('clientesContainer');
-
-    // Generar código aleatorio
-    function generateCode() {
-        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-        let code = 'CLI';
-        for (let i = 0; i < 8; i++) {
-            code += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
-        document.getElementById('codigoCliente').value = code;
-    }
-
-    // Mostrar alerta
-    function showAlert(message, type = 'success') {
-        alertContainer.innerHTML = `<div class="alert alert-${type === 'success' ? 'success' : 'error'} show">${message}</div>`;
-        setTimeout(() => {
-            alertContainer.innerHTML = '';
-        }, 4000);
-    }
-
-    // Validar dirección MAC
-    function validarMAC(mac) {
-        const regex = /^([0-9A-Fa-f]{2}:){5}([0-9A-Fa-f]{2})$/;
-        return regex.test(mac);
-    }
-
-    // Registrar cliente en Supabase
-    async function registerClient(event) {
-        event.preventDefault();
-
-        const codigo = document.getElementById('codigoCliente').value.trim().toUpperCase();
-        const mac = document.getElementById('macEsp32').value.trim().toUpperCase();
-        const nombre = document.getElementById('nombreCliente').value.trim();
-
-        if (!/^CLI[A-Z0-9]{8}$/.test(codigo)) {
-            showAlert('Código de cliente inválido. Debe ser CLI seguido de 8 caracteres alfanuméricos.', 'error');
-            return;
-        }
-
-        if (!validarMAC(mac)) {
-            showAlert('MAC ESP32 inválida. Debe tener el formato AA:BB:CC:DD:EE:FF.', 'error');
-            return;
-        }
-
-        // Verificar si ya existe código o MAC
-        let { data: existingCode, error: codeError } = await supabase
-            .from('clientes')
-            .select('id')
-            .eq('codigo_cliente', codigo)
-            .single();
-
-        if (existingCode) {
-            showAlert('El código de cliente ya existe.', 'error');
-            return;
-        }
-
-        let { data: existingMac, error: macError } = await supabase
-            .from('clientes')
-            .select('id')
-            .eq('mac_esp32', mac)
-            .single();
-
-        if (existingMac) {
-            showAlert('La MAC ESP32 ya está registrada.', 'error');
-            return;
-        }
-
-        // Insertar cliente
-        const { error } = await supabase
-            .from('clientes')
-            .insert([
-                { codigo_cliente: codigo, mac_esp32: mac, nombre: nombre, estado: 'activo' }
-            ]);
-
-        if (error) {
-            showAlert('Error registrando cliente: ' + error.message, 'error');
-        } else {
-            showAlert('Cliente registrado con éxito.');
-            document.getElementById('registerForm').reset();
+        // Inicializar
+        window.addEventListener('load', () => {
+            console.log('🚀 Iniciando panel de fábrica...');
             cargarClientes();
-        }
-    }
-
-    // Cargar lista de clientes
-    async function cargarClientes() {
-        clientesContainer.innerHTML = '<div class="loading">Cargando...</div>';
-
-        const { data, error } = await supabase
-            .from('clientes')
-            .select('*')
-            .order('created_at', { ascending: false });
-
-        if (error) {
-            clientesContainer.innerHTML = `<div class="alert alert-error">Error cargando clientes: ${error.message}</div>`;
-            return;
-        }
-
-        if (data.length === 0) {
-            clientesContainer.innerHTML = '<p>No hay clientes registrados.</p>';
-            return;
-        }
-
-        // Tabla HTML
-        let html = `<div class="table-container"><table>
-            <thead>
-                <tr>
-                    <th>Código Cliente</th>
-                    <th>MAC ESP32</th>
-                    <th>Nombre</th>
-                    <th>Estado</th>
-                </tr>
-            </thead><tbody>`;
-
-        data.forEach(cliente => {
-            html += `<tr>
-                <td>${cliente.codigo_cliente}</td>
-                <td>${cliente.mac_esp32}</td>
-                <td>${cliente.nombre || ''}</td>
-                <td><span class="badge ${cliente.estado === 'activo' ? 'badge-active' : 'badge-inactive'}">${cliente.estado}</span></td>
-            </tr>`;
         });
-
-        html += '</tbody></table></div>';
-
-        clientesContainer.innerHTML = html;
-    }
-
-    // Inicializar
-    window.onload = () => {
-        cargarClientes();
-    };
-</script>
+    </script>
 </body>
 </html>
