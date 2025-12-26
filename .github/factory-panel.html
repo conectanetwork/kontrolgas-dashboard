@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>KontrolGas - Panel de Fábrica</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+<style>
+  /* (Estilos simplificados para claridad, puedes usar los previos o mejorar) */
+  body { font-family: Arial, sans-serif; background:#0f172a; color:#f1f5f9; margin:20px; }
+  .container { max-width: 1000px; margin: auto; }
+  input, button { padding: 10px; margin-top: 5px; border-radius: 5px; border: none; }
+  input { width: 100%; max-width: 300px; }
+  button { cursor: pointer; background: #3b82f6; color: white; }
+  table { width: 100%; margin-top: 20px; border-collapse: collapse; }
+  th, td { padding: 10px; border-bottom: 1px solid #334155; }
+  th { text-align: left; }
+</style>
+</head>
+<body>
+  <div class="container">
+    <h1>Panel de Fábrica - KontrolGas</h1>
+    <p>Generar código cliente y asociar MAC ESP32</p>
+
+    <form id="generateForm">
+      <label>MAC ESP32 (formato XX:XX:XX:XX:XX:XX):</label><br />
+      <input id="macInput" type="text" pattern="[A-Fa-f0-9]{2}(:[A-Fa-f0-9]{2}){5}" required />
+      <br />
+      <label>Nombre Cliente (opcional):</label><br />
+      <input id="nombreInput" type="text" />
+      <br />
+      <button type="submit">Generar Código Cliente</button>
+    </form>
+
+    <div id="result" style="margin-top:20px; font-weight:bold;"></div>
+
+    <h2>Lista de Clientes Generados</h2>
+    <button onclick="loadClientes()">Actualizar Lista</button>
+    <table>
+      <thead>
+        <tr>
+          <th>Código Cliente</th><th>MAC ESP32</th><th>Nombre</th><th>Estado</th>
+        </tr>
+      </thead>
+      <tbody id="clientesTable">
+        <tr><td colspan="4">Cargando...</td></td>
+      </tbody>
+    </table>
+  </div>
+
+<script>
+  // Configura tus credenciales Supabase aquí
+  const SUPABASE_URL = 'https://sxmqctvehtxqsdsjtftg.supabase.co';
+  const SUPABASE_ANON_KEY = 'TU_ANON_KEY_AQUI';
+
+  const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // Generador de código CLI + 8 alfanuméricos
+  function generarCodigoCliente() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let code = 'CLI';
+    for (let i = 0; i < 8; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
+  }
+
+  async function generarUnicoCodigo() {
+    let existe = true;
+    let codigo = '';
+    while(existe) {
+      codigo = generarCodigoCliente();
+      const { data } = await supabase.from('clientes').select('codigo_cliente').eq('codigo_cliente', codigo);
+      if (!data || data.length === 0) existe = false;
+    }
+    return codigo;
+  }
+
+  document.getElementById('generateForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const mac = document.getElementById('macInput').value.toUpperCase();
+    const nombre = document.getElementById('nombreInput').value.trim();
+
+    // Validar MAC con regex
+    if(!/^([A-F0-9]{2}:){5}[A-F0-9]{2}$/.test(mac)){
+      alert('MAC inválida, use formato XX:XX:XX:XX:XX:XX');
+      return;
+    }
+
+    const codigo_cliente = await generarUnicoCodigo();
+
+    const { error } = await supabase.from('clientes').insert([
+      {
+        codigo_cliente,
+        mac_esp32: mac,
+        nombre_cliente: nombre !== '' ? nombre : null,
+        estado: 'activo'
+      }
+    ]);
+
+    if(error){
+      alert('Error al guardar: ' + error.message);
+      return;
+    }
+
+    document.getElementById('result').textContent = 'Código generado: ' + codigo_cliente;
+    document.getElementById('generateForm').reset();
+
+    loadClientes();
+  });
+
+  async function loadClientes(){
+    const { data, error } = await supabase.from('clientes').select().order('created_at', { ascending: false });
+    if(error){
+      alert('Error al cargar la lista: ' + error.message);
+      return;
+    }
+    const tbody = document.getElementById('clientesTable');
+    if(!data || data.length === 0){
+      tbody.innerHTML = '<tr><td colspan="4">No hay clientes registrados</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.map(c => `
+      <tr>
+        <td>${c.codigo_cliente}</td>
+        <td>${c.mac_esp32}</td>
+        <td>${c.nombre_cliente ?? '-'}</td>
+        <td>${c.estado}</td>
+      </tr>
+    `).join('');
+  }
+
+  loadClientes();
+</script>
+</body>
+</html>
