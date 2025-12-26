@@ -1,8 +1,262 @@
-<script>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Fábrica - KontrolGas</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 18px;
+            opacity: 0.9;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            margin-bottom: 30px;
+        }
+
+        .card-title {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 8px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-generate {
+            background: #10b981;
+            color: white;
+            margin-bottom: 15px;
+        }
+
+        .btn-generate:hover {
+            background: #059669;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .alert.show {
+            display: block;
+        }
+
+        .alert-success {
+            background: #d1fae5;
+            border: 1px solid #10b981;
+            color: #065f46;
+        }
+
+        .alert-error {
+            background: #fee2e2;
+            border: 1px solid #ef4444;
+            color: #991b1b;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-active {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .badge-inactive {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏭 Panel de Fábrica</h1>
+            <p>KontrolGas - Registro de Clientes</p>
+        </div>
+
+        <!-- Formulario de Registro -->
+        <div class="card">
+            <div class="card-title">📝 Registrar Nuevo Cliente</div>
+
+            <div id="alertContainer"></div>
+
+            <button class="btn btn-generate" onclick="generateCode()">
+                🎲 Generar Código Automático
+            </button>
+
+            <form id="registerForm" onsubmit="registerClient(event)">
+                <div class="form-group">
+                    <label class="form-label">Código de Cliente</label>
+                    <input 
+                        type="text" 
+                        id="codigoCliente" 
+                        class="form-input" 
+                        placeholder="CLI12AB34CD"
+                        pattern="CLI[A-Z0-9]{8}"
+                        maxlength="11"
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">MAC ESP32</label>
+                    <input 
+                        type="text" 
+                        id="macEsp32" 
+                        class="form-input" 
+                        placeholder="A4:CF:12:34:56:78"
+                        pattern="[A-Fa-f0-9:]{17}"
+                        maxlength="17"
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Nombre (Opcional)</label>
+                    <input 
+                        type="text" 
+                        id="nombreCliente" 
+                        class="form-input" 
+                        placeholder="Nombre del cliente"
+                    >
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                    ✅ Registrar Cliente
+                </button>
+            </form>
+        </div>
+
+        <!-- Lista de Clientes -->
+        <div class="card">
+            <div class="card-title">📋 Clientes Registrados</div>
+            <div id="clientesContainer">
+                <div class="loading">Cargando...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuración Supabase
         const SUPABASE_URL = 'https://sxmqctvehtxqsdsjtftg.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN4bXFjdHZlaHR4cXNkc2p0ZnRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY3MDg3NzksImV4cCI6MjA4MjI4NDc3OX0.XTksCLbn7gNT3a-afVJJ7EfSFqfCc620Kit63IxfX9M';
 
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        // Crear cliente Supabase
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         const alertContainer = document.getElementById('alertContainer');
         const clientesContainer = document.getElementById('clientesContainer');
@@ -50,7 +304,7 @@
             }
 
             // Verificar si ya existe código
-            const { data: existingCode } = await supabase
+            const { data: existingCode } = await supabaseClient
                 .from('clientes')
                 .select('id')
                 .eq('codigo_cliente', codigo)
@@ -62,7 +316,7 @@
             }
 
             // Verificar si ya existe MAC
-            const { data: existingMac } = await supabase
+            const { data: existingMac } = await supabaseClient
                 .from('clientes')
                 .select('id')
                 .eq('mac_esp32', mac)
@@ -74,7 +328,7 @@
             }
 
             // Insertar cliente
-            const { error } = await supabase
+            const { error } = await supabaseClient
                 .from('clientes')
                 .insert([
                     { 
@@ -101,7 +355,7 @@
             clientesContainer.innerHTML = '<div class="loading">Cargando...</div>';
 
             try {
-                const { data, error } = await supabase
+                const { data, error } = await supabaseClient
                     .from('clientes')
                     .select('*')
                     .order('created_at', { ascending: false });
