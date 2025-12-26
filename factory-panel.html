@@ -226,12 +226,22 @@
                 </div>
 
                 <div class="form-group">
-                    <label class="form-label">Zona de Ventas (Opcional)</label>
+                    <label class="form-label">Nombre del Cliente (Opcional)</label>
                     <input 
                         type="text" 
-                        id="zonaVentas" 
+                        id="nombreCliente" 
                         class="form-input" 
-                        placeholder="Ej: Zona Norte, Centro, Sur"
+                        placeholder="Ej: Juan Pérez, Empresa ABC"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Notas (Opcional)</label>
+                    <input 
+                        type="text" 
+                        id="notasCliente" 
+                        class="form-input" 
+                        placeholder="Ej: Zona Norte, Cliente VIP"
                     >
                 </div>
 
@@ -291,7 +301,8 @@
 
             const codigo = document.getElementById('codigoCliente').value.trim().toUpperCase();
             const mac = document.getElementById('macEsp32').value.trim().toUpperCase();
-            const zona = document.getElementById('zonaVentas').value.trim();
+            const nombre = document.getElementById('nombreCliente').value.trim();
+            const notas = document.getElementById('notasCliente').value.trim();
 
             if (!/^CLI[A-Z0-9]{8}$/.test(codigo)) {
                 showAlert('❌ Código de cliente inválido. Debe ser CLI seguido de 8 caracteres alfanuméricos.', 'error');
@@ -334,7 +345,8 @@
                     { 
                         codigo_cliente: codigo, 
                         mac_esp32: mac, 
-                        zona_ventas: zona || null, 
+                        nombre_cliente: nombre || null,
+                        notas: notas || null,
                         estado: 'activo' 
                     }
                 ]);
@@ -380,7 +392,8 @@
                         <tr>
                             <th>Código Cliente</th>
                             <th>MAC ESP32</th>
-                            <th>Zona de Ventas</th>
+                            <th>Nombre</th>
+                            <th>Notas</th>
                             <th>Estado</th>
                         </tr>
                     </thead><tbody>`;
@@ -389,7 +402,8 @@
                     html += `<tr>
                         <td><strong>${cliente.codigo_cliente}</strong></td>
                         <td><code>${cliente.mac_esp32}</code></td>
-                        <td>${cliente.zona_ventas || '-'}</td>
+                        <td>${cliente.nombre_cliente || '-'}</td>
+                        <td>${cliente.notas || '-'}</td>
                         <td><span class="badge ${cliente.estado === 'activo' ? 'badge-active' : 'badge-inactive'}">${cliente.estado}</span></td>
                     </tr>`;
                 });
