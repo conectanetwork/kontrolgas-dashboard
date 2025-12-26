@@ -6,7 +6,7 @@
     <title>KontrolGas - Dashboard Profesional</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
             --bg-primary: #0f172a;
@@ -235,7 +235,7 @@
             transform: translateY(-2px);
             box-shadow: 0 5px 15px rgba(59, 130, 246, 0.3);
         }
-      .status-bar {
+        .status-bar {
             background: var(--bg-card);
             border: 2px solid var(--border-color);
             border-radius: 20px;
@@ -483,7 +483,7 @@
     </style>
 </head>
 <body>
-  <!-- LOGIN SCREEN -->
+    <!-- LOGIN SCREEN -->
     <div id="loginScreen" class="login-container">
         <div class="login-card">
             <svg class="login-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
@@ -549,33 +549,7 @@
                         <text x="50" y="90" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="url(#logoGradient2)" text-anchor="middle">K</text>
                     </svg>
                 </div>
-
-                <h1>KontrolGas</h1>
-                <p>Monitoreo de Gas Profesional</p>
-                <div class="badge">🚀 Nivel 2: Envío Condicional | 97% Ahorro</div>
-            </div>
-Copia esta PARTE 3, añádela después de la PARTE 2 y dime "listo" para continuar con la siguiente parte.## 📄 PARTE 4 de 5 - DASHBOARD CONTINÚA
-
-html 
 <!-- Barra de Estado -->
-            <div class="status-bar">
-                <div class="status-item">
-                    <div id="mqttIndicator" class="status-indicator disconnected"></div>
-                    <div>
-                        <div class="status-text">Estado MQTT</div>
-                        <div class="status-value" id="mqttStatus">Conectando...</div>
-                    </div>
-                </div>
-                <div class="status-item">
-                    <div>
-                        <div class="status-text">Cliente:</div>
-                        <div class="status-value" id="clienteCode">-</div>
-                    </div>
-                </div>
-                <div class="status-item">
-                    <div>
-                        <div class="status-text">Última Actualización:<
-                                                                       <!-- Barra de Estado -->
             <div class="status-bar">
                 <div class="status-item">
                     <div id="mqttIndicator" class="status-indicator disconnected"></div>
@@ -677,7 +651,7 @@ html
             </div>
         </div>
     </div>
-                  <script>
+    <script>
         // ============================================
         // CONFIGURACIÓN SUPABASE
         // ============================================
@@ -697,7 +671,6 @@ html
         let emptyWeight = 0;
         let fullWeight = 15;
         let consumptionChart = null;
-        let historicalData = [];
         let userMac = null;
         let userCode = null;
 
@@ -709,7 +682,6 @@ html
             const savedMac = localStorage.getItem('kontrolgas_mac');
 
             if (savedCode && savedMac) {
-                // Verificar que siga siendo válido
                 const { data, error } = await supabase
                     .from('clientes')
                     .select('*')
@@ -720,6 +692,7 @@ html
                 if (data && !error) {
                     userCode = savedCode;
                     userMac = savedMac;
+                    await loadHistoricalData();
                     showDashboard();
                     return;
                 }
@@ -744,20 +717,18 @@ html
             updateDisplay();
         }
 
+        // EVENTO LOGIN FORM
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
             const codigo = document.getElementById('codigoInput').value.toUpperCase();
             const errorDiv = document.getElementById('loginError');
 
-            // Validar formato
             if (!/^CLI[A-Z0-9]{8}$/.test(codigo)) {
                 errorDiv.textContent = '❌ Formato inválido. Use: CLI + 8 caracteres alfanuméricos';
                 errorDiv.classList.add('show');
                 return;
             }
 
-            // Verificar en Supabase
             const { data, error } = await supabase
                 .from('clientes')
                 .select('*')
@@ -776,12 +747,13 @@ html
                 return;
             }
 
-            // Login exitoso
             userCode = data.codigo_cliente;
             userMac = data.mac_esp32;
 
             localStorage.setItem('kontrolgas_code', userCode);
             localStorage.setItem('kontrolgas_mac', userMac);
+
+            await loadHistoricalData();
 
             showDashboard();
         });
@@ -791,33 +763,27 @@ html
             localStorage.removeItem('kontrolgas_mac');
             userCode = null;
             userMac = null;
-            
             if (mqttClient) {
                 mqttClient.end();
             }
-            
             showLogin();
         }
 
         // ============================================
-        // TEMA OSCURO/CLARO
+        // TEMA DARK/LIGHT
         // ============================================
         function toggleTheme() {
             const html = document.documentElement;
             const currentTheme = html.getAttribute('data-theme');
             const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-            
             html.setAttribute('data-theme', newTheme);
             localStorage.setItem('theme', newTheme);
-            
             document.getElementById('themeIcon').textContent = newTheme === 'light' ? '☀️' : '🌙';
             document.getElementById('themeText').textContent = newTheme === 'light' ? 'Tema Claro' : 'Tema Oscuro';
-            
             if (consumptionChart) {
                 updateChartTheme();
             }
         }
-
         function loadTheme() {
             const savedTheme = localStorage.getItem('theme') || 'dark';
             document.documentElement.setAttribute('data-theme', savedTheme);
@@ -826,135 +792,140 @@ html
         }
 
         // ============================================
-        // CARGAR CONFIGURACIÓN
+        // CARGAR Y GUARDAR CONFIGURACION PESOS
         // ============================================
         function loadConfiguration() {
             const savedEmpty = localStorage.getItem('emptyWeight_' + userMac);
             const savedFull = localStorage.getItem('fullWeight_' + userMac);
-            const savedHistory = localStorage.getItem('historicalData_' + userMac);
-
             if (savedEmpty) {
                 emptyWeight = parseFloat(savedEmpty);
                 document.getElementById('emptyWeight').value = emptyWeight;
             }
-
             if (savedFull) {
                 fullWeight = parseFloat(savedFull);
                 document.getElementById('fullWeight').value = fullWeight;
             }
-
-            if (savedHistory) {
-                try {
-                    historicalData = JSON.parse(savedHistory);
-                    const now = Date.now();
-                    historicalData = historicalData.filter(item => 
-                        (now - item.timestamp) < 24 * 60 * 60 * 1000
-                    );
-                } catch (e) {
-                    historicalData = [];
-                }
-            }
         }
-
-        // ============================================
-        // GUARDAR CONFIGURACIÓN
-        // ============================================
         function saveConfiguration() {
             emptyWeight = parseFloat(document.getElementById('emptyWeight').value);
             fullWeight = parseFloat(document.getElementById('fullWeight').value);
-
             localStorage.setItem('emptyWeight_' + userMac, emptyWeight);
             localStorage.setItem('fullWeight_' + userMac, fullWeight);
-
             updateDisplay();
             alert('✅ Configuración guardada correctamente');
         }
-
         function resetConfiguration() {
             document.getElementById('emptyWeight').value = 0;
             document.getElementById('fullWeight').value = 15;
             emptyWeight = 0;
             fullWeight = 15;
-            
             localStorage.setItem('emptyWeight_' + userMac, 0);
             localStorage.setItem('fullWeight_' + userMac, 15);
-            
             updateDisplay();
             alert('🔄 Configuración restablecida');
         }
-
         // ============================================
-        // CONECTAR MQTT
+        // CONECTAR MQTT Y ESCUCHAR MENSAJES
         // ============================================
         function connectMQTT() {
-            try {
-                mqttClient = mqtt.connect(MQTT_BROKER);
+            mqttClient = mqtt.connect(MQTT_BROKER);
 
-                mqttClient.on('connect', () => {
-                    console.log('✅ MQTT Conectado');
-                    document.getElementById('mqttStatus').textContent = 'Conectado';
-                    document.getElementById('mqttIndicator').className = 'status-indicator connected';
-                    
-                    mqttClient.subscribe(MQTT_TOPIC, (err) => {
-                        if (!err) {
-                            console.log('✅ Suscrito a:', MQTT_TOPIC);
-                        }
-                    });
+            mqttClient.on('connect', () => {
+                console.log('✅ MQTT Conectado');
+                document.getElementById('mqttStatus').textContent = 'Conectado';
+                document.getElementById('mqttIndicator').className = 'status-indicator connected';
+                mqttClient.subscribe(MQTT_TOPIC, (err) => {
+                    if (err) console.error('Error suscribiendo:', err);
                 });
+            });
 
-                mqttClient.on('message', (topic, message) => {
-                    try {
-                        const data = JSON.parse(message.toString());
-                        
-                        // Extraer MAC del ID
-                        let mac = data.id;
-                        if (mac && mac.startsWith('KG-')) {
-                            mac = mac.replace('KG-', '').match(/.{1,2}/g)?.join(':') || mac;
-                        }
+            mqttClient.on('message', async (topic, message) => {
+                try {
+                    const data = JSON.parse(message.toString());
 
-                        // FILTRAR: Solo mostrar datos de la MAC del usuario
-                        if (mac !== userMac) {
-                            return; // Ignorar datos de otras básculas
-                        }
-
-                        if (data.w !== undefined) {
-                            currentWeight = parseFloat(data.w);
-                            
-                            if (data.r !== undefined) {
-                                document.getElementById('rssiValue').textContent = data.r + ' dBm';
-                            }
-                            
-                            updateDisplay();
-                            addHistoricalData(currentWeight);
-                            
-                            const now = new Date();
-                            document.getElementById('lastUpdate').textContent = 
-                                now.toLocaleTimeString('es-ES');
-                        }
-                    } catch (e) {
-                        console.error('Error parseando mensaje:', e);
+                    // Filtrar por MAC
+                    let mac = data.mac || '';
+                    if (mac.toLowerCase() !== userMac.toLowerCase()) {
+                        return; // Ignorar si no es nuestra báscula
                     }
+
+                    if (data.w !== undefined) {
+                        currentWeight = parseFloat(data.w);
+                        if (data.r !== undefined) {
+                            document.getElementById('rssiValue').textContent = data.r + ' dBm';
+                        }
+
+                        // Mostrar datos
+                        updateDisplay();
+
+                        // Guardar en Supabase
+                        await guardarMedicionSupabase(currentWeight, mac);
+
+                        // Actualizar última actualización
+                        const now = new Date();
+                        document.getElementById('lastUpdate').textContent = now.toLocaleTimeString('es-ES');
+
+                        // Actualizar gráfico
+                        await loadHistoricalData();
+                    }
+                } catch (e) {
+                    console.error('Error mensaje MQTT:', e);
+                }
+            });
+
+            mqttClient.on('error', (err) => {
+                console.error('❌ Error MQTT:', err);
+                document.getElementById('mqttStatus').textContent = 'Error';
+                document.getElementById('mqttIndicator').className = 'status-indicator disconnected';
+            });
+
+            mqttClient.on('close', () => {
+                console.log('⚠️ MQTT Desconectado');
+                document.getElementById('mqttStatus').textContent = 'Desconectado';
+                document.getElementById('mqttIndicator').className = 'status-indicator disconnected';
+            });
+        }
+
+        // ============================================
+        // GUARDAR MEDICIÓN EN SUPABASE
+        // ============================================
+        async function guardarMedicionSupabase(peso, mac) {
+            const { error } = await supabase
+                .from('mediciones')
+                .insert({
+                    mac_esp32: mac,
+                    peso: peso,
+                    timestamp: new Date().toISOString()
                 });
 
-                mqttClient.on('error', (err) => {
-                    console.error('❌ Error MQTT:', err);
-                    document.getElementById('mqttStatus').textContent = 'Error';
-                    document.getElementById('mqttIndicator').className = 'status-indicator disconnected';
-                });
-
-                mqttClient.on('close', () => {
-                    console.log('⚠️ MQTT Desconectado');
-                    document.getElementById('mqttStatus').textContent = 'Desconectado';
-                    document.getElementById('mqttIndicator').className = 'status-indicator disconnected';
-                });
-
-            } catch (e) {
-                console.error('❌ Error conectando MQTT:', e);
+            if (error) {
+                console.error('❌ Error guardando en Supabase:', error);
             }
         }
 
         // ============================================
-        // ACTUALIZAR DISPLAY
+        // CARGAR DATOS HISTÓRICOS PARA GRÁFICO
+        // ============================================
+        async function loadHistoricalData() {
+            const { data, error } = await supabase
+                .from('mediciones')
+                .select('peso, timestamp')
+                .eq('mac_esp32', userMac)
+                .gte('timestamp', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+                .order('timestamp', { ascending: true });
+
+            if (error) {
+                console.error('❌ Error cargando historial:', error);
+                return;
+            }
+
+            if (data) {
+                updateConsumptionChart(data);
+            }
+        }
+
+        // ============================================
+        // ACTUALIZAR DISPLAY DIGITAL Y GAUGE
         // ============================================
         function updateDisplay() {
             const netWeight = Math.max(0, currentWeight - emptyWeight);
@@ -965,16 +936,13 @@ html
             updateGauge(percentage);
         }
 
-        // ============================================
-        // ACTUALIZAR GAUGE
-        // ============================================
         function updateGauge(percentage) {
             const circumference = 251.2;
             const offset = circumference - (percentage / 100) * circumference;
-            
+
             const gaugeProgress = document.getElementById('gaugeProgress');
             const gaugePercentage = document.getElementById('gaugePercentage');
-            
+
             gaugeProgress.style.strokeDashoffset = offset;
             gaugePercentage.textContent = percentage.toFixed(1) + '%';
 
@@ -990,34 +958,13 @@ html
         }
 
         // ============================================
-        // AGREGAR DATOS HISTÓRICOS
+        // CREAR Y ACTUALIZAR GRÁFICO DE CONSUMO
         // ============================================
-        function addHistoricalData(weight) {
-            const now = Date.now();
-            
-            historicalData.push({
-                timestamp: now,
-                weight: weight
-            });
-
-            historicalData = historicalData.filter(item => 
-                (now - item.timestamp) < 24 * 60 * 60 * 1000
-            );
-
-            if (historicalData.length % 10 === 0) {
-                localStorage.setItem('historicalData_' + userMac, JSON.stringify(historicalData));
-            }
-
-            updateConsumptionChart();
-        }
-
-        // ============================================
-        // ACTUALIZAR GRÁFICO
-        // ============================================
-        function updateConsumptionChart() {
+        function updateConsumptionChart(data) {
             const now = Date.now();
             const last24Hours = now - (24 * 60 * 60 * 1000);
 
+            // Labels por hora
             const hourlyLabels = [];
             const hourlyValues = new Array(24).fill(null);
 
@@ -1026,47 +973,37 @@ html
                 hourlyLabels.push(date.getHours() + ':00');
             }
 
-            historicalData.forEach(item => {
-                if (item.timestamp >= last24Hours) {
-                    const hoursAgo = Math.floor((now - item.timestamp) / (60 * 60 * 1000));
+            data.forEach(item => {
+                const timestamp = new Date(item.timestamp).getTime();
+                if (timestamp >= last24Hours) {
+                    const hoursAgo = Math.floor((now - timestamp) / (60 * 60 * 1000));
                     const index = 23 - hoursAgo;
-                    
                     if (index >= 0 && index < 24) {
-                        hourlyValues[index] = item.weight;
+                        hourlyValues[index] = item.peso;
                     }
                 }
             });
 
-            // Interpolación
+            // Interpolación simple para huecos
             for (let i = 0; i < hourlyValues.length; i++) {
                 if (hourlyValues[i] === null) {
-                    let prevValue = null;
-                    let prevIndex = -1;
-                    
+                    let prev = null, next = null;
+
                     for (let j = i - 1; j >= 0; j--) {
                         if (hourlyValues[j] !== null) {
-                            prevValue = hourlyValues[j];
-                            prevIndex = j;
+                            prev = { index: j, value: hourlyValues[j] };
                             break;
                         }
                     }
-                    
-                    let nextValue = null;
-                    let nextIndex = -1;
-                    
                     for (let j = i + 1; j < hourlyValues.length; j++) {
                         if (hourlyValues[j] !== null) {
-                            nextValue = hourlyValues[j];
-                            nextIndex = j;
+                            next = { index: j, value: hourlyValues[j] };
                             break;
                         }
                     }
-                    
-                    if (prevValue !== null && nextValue !== null) {
-                        const totalGap = nextIndex - prevIndex;
-                        const currentGap = i - prevIndex;
-                        const ratio = currentGap / totalGap;
-                        hourlyValues[i] = prevValue + (nextValue - prevValue) * ratio;
+                    if (prev && next) {
+                        const ratio = (i - prev.index) / (next.index - prev.index);
+                        hourlyValues[i] = prev.value + (next.value - prev.value) * ratio;
                     }
                 }
             }
@@ -1080,15 +1017,12 @@ html
             }
         }
 
-        // ============================================
-        // CREAR GRÁFICO
-        // ============================================
         function createConsumptionChart(labels, data) {
             const ctx = document.getElementById('consumptionChart').getContext('2d');
             const theme = document.documentElement.getAttribute('data-theme') || 'dark';
             const textColor = theme === 'light' ? '#0f172a' : '#f1f5f9';
-            const gridColor = theme === 'light' ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.1)';
-            
+            const gridColor = theme === 'light' ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)';
+
             consumptionChart = new Chart(ctx, {
                 type: 'line',
                 data: {
@@ -1113,9 +1047,7 @@ html
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: {
-                            display: false
-                        },
+                        legend: { display: false },
                         tooltip: {
                             mode: 'index',
                             intersect: false,
@@ -1123,36 +1055,21 @@ html
                             padding: 12,
                             cornerRadius: 8,
                             callbacks: {
-                                label: function(context) {
-                                    return context.parsed.y !== null 
-                                        ? 'Peso: ' + context.parsed.y.toFixed(2) + ' kg'
-                                        : 'Sin datos';
-                                }
+                                label: context => context.parsed.y !== null ? `Peso: ${context.parsed.y.toFixed(2)} kg` : 'Sin datos'
                             }
                         }
                     },
                     scales: {
                         x: {
-                            grid: {
-                                color: gridColor,
-                                display: true
-                            },
-                            ticks: {
-                                color: textColor,
-                                maxRotation: 45,
-                                minRotation: 45
-                            }
+                            grid: { color: gridColor, display: true },
+                            ticks: { color: textColor, maxRotation: 45, minRotation: 45 }
                         },
                         y: {
                             beginAtZero: true,
-                            grid: {
-                                color: gridColor
-                            },
+                            grid: { color: gridColor },
                             ticks: {
                                 color: textColor,
-                                callback: function(value) {
-                                    return value.toFixed(1) + ' kg';
-                                }
+                                callback: value => `${value.toFixed(1)} kg`
                             }
                         }
                     }
@@ -1163,8 +1080,10 @@ html
         function updateChartTheme() {
             const theme = document.documentElement.getAttribute('data-theme') || 'dark';
             const textColor = theme === 'light' ? '#0f172a' : '#f1f5f9';
-            const gridColor = theme === 'light' ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.1)';
-            
+            const gridColor = theme === 'light' ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)';
+
+            if (!consumptionChart) return;
+
             consumptionChart.options.scales.x.ticks.color = textColor;
             consumptionChart.options.scales.x.grid.color = gridColor;
             consumptionChart.options.scales.y.ticks.color = textColor;
@@ -1173,7 +1092,7 @@ html
         }
 
         // ============================================
-        // INICIALIZACIÓN
+        // INICIALIZACIÓN AL CARGAR PÁGINA
         // ============================================
         window.addEventListener('load', () => {
             checkLogin();
@@ -1181,4 +1100,3 @@ html
     </script>
 </body>
 </html>
-                  
