@@ -20,7 +20,7 @@
         }
 
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
         }
 
@@ -112,6 +112,23 @@
             background: #059669;
         }
 
+        .btn-delete {
+            background: #ef4444;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .btn-delete:hover {
+            background: #dc2626;
+            transform: translateY(-2px);
+        }
+
         .alert {
             padding: 15px;
             border-radius: 10px;
@@ -178,6 +195,95 @@
             text-align: center;
             padding: 40px;
             color: #666;
+        }
+
+        /* Modal de confirmación */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.3s;
+        }
+
+        .modal.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+            animation: slideIn 0.3s;
+        }
+
+        .modal-title {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .modal-text {
+            font-size: 16px;
+            color: #666;
+            margin-bottom: 25px;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-cancel {
+            flex: 1;
+            padding: 12px;
+            background: #e5e7eb;
+            color: #374151;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-cancel:hover {
+            background: #d1d5db;
+        }
+
+        .btn-confirm {
+            flex: 1;
+            padding: 12px;
+            background: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-confirm:hover {
+            background: #dc2626;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
         }
     </style>
 </head>
@@ -260,6 +366,22 @@
         </div>
     </div>
 
+    <!-- Modal de Confirmación -->
+    <div id="deleteModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-title">⚠️ Confirmar Eliminación</div>
+            <div class="modal-text">
+                ¿Estás seguro de eliminar el cliente <strong id="deleteClientCode"></strong>?
+                <br><br>
+                Esta acción no se puede deshacer.
+            </div>
+            <div class="modal-buttons">
+                <button class="btn-cancel" onclick="closeDeleteModal()">Cancelar</button>
+                <button class="btn-confirm" onclick="confirmDelete()">Eliminar</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Configuración Supabase
         const SUPABASE_URL = 'https://sxmqctvehtxqsdsjtftg.supabase.co';
@@ -270,6 +392,8 @@
 
         const alertContainer = document.getElementById('alertContainer');
         const clientesContainer = document.getElementById('clientesContainer');
+        const deleteModal = document.getElementById('deleteModal');
+        let clientToDelete = null;
 
         // Generar código aleatorio
         function generateCode() {
@@ -361,6 +485,39 @@
             }
         }
 
+        // Mostrar modal de confirmación
+        function showDeleteModal(id, codigo) {
+            clientToDelete = id;
+            document.getElementById('deleteClientCode').textContent = codigo;
+            deleteModal.classList.add('show');
+        }
+
+        // Cerrar modal
+        function closeDeleteModal() {
+            deleteModal.classList.remove('show');
+            clientToDelete = null;
+        }
+
+        // Confirmar eliminación
+        async function confirmDelete() {
+            if (!clientToDelete) return;
+
+            const { error } = await supabaseClient
+                .from('clientes')
+                .delete()
+                .eq('id', clientToDelete);
+
+            if (error) {
+                console.error('Error eliminando:', error);
+                showAlert('❌ Error eliminando cliente: ' + error.message, 'error');
+            } else {
+                showAlert('✅ Cliente eliminado correctamente.');
+                cargarClientes();
+            }
+
+            closeDeleteModal();
+        }
+
         // Cargar lista de clientes
         async function cargarClientes() {
             console.log('🔄 Cargando clientes...');
@@ -395,6 +552,7 @@
                             <th>Nombre</th>
                             <th>Notas</th>
                             <th>Estado</th>
+                            <th>Acciones</th>
                         </tr>
                     </thead><tbody>`;
 
@@ -405,6 +563,11 @@
                         <td>${cliente.nombre_cliente || '-'}</td>
                         <td>${cliente.notas || '-'}</td>
                         <td><span class="badge ${cliente.estado === 'activo' ? 'badge-active' : 'badge-inactive'}">${cliente.estado}</span></td>
+                        <td>
+                            <button class="btn-delete" onclick="showDeleteModal('${cliente.id}', '${cliente.codigo_cliente}')">
+                                🗑️ Eliminar
+                            </button>
+                        </td>
                     </tr>`;
                 });
 
@@ -423,6 +586,13 @@
         window.addEventListener('load', () => {
             console.log('🚀 Iniciando panel de fábrica...');
             cargarClientes();
+        });
+
+        // Cerrar modal al hacer clic fuera
+        deleteModal.addEventListener('click', (e) => {
+            if (e.target === deleteModal) {
+                closeDeleteModal();
+            }
         });
     </script>
 </body>
