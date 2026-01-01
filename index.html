@@ -695,8 +695,8 @@
                     <div class="battery-voltage" id="batteryVoltage">-- V</div>
                 </div>
                 <div class="battery-progress">
-                    <div class="battery-progress-fill" id="batteryProgressFill" 
-                         style="width: 0%; background: #48bb78;"></div>
+                    <div class="battery-progress-fill" id="batteryProgressFill"
+                          style="width: 0%; background: #48bb78;"></div>
                 </div>
             </div>
         </div>
@@ -711,8 +711,8 @@
                 <div class="gauge-container">
                     <svg class="gauge-svg" viewBox="0 0 200 120">
                         <path class="gauge-track" d="M 30 90 A 70 70 0 0 1 170 90" stroke-linecap="round"/>
-                        <path class="gauge-fill" d="M 30 90 A 70 70 0 0 1 170 90" 
-                              stroke-dasharray="0 220" id="liquidGauge" stroke-linecap="round"/>
+                        <path class="gauge-fill" d="M 30 90 A 70 70 0 0 1 170 90"
+                               stroke-dasharray="0 220" id="liquidGauge" stroke-linecap="round"/>
                     </svg>
                     <div class="gauge-center">
                         <div class="gauge-percentage" id="liquidLevel">0.0%</div>
@@ -800,15 +800,34 @@
     </div>
 
     <script>
+        // Variables globales para el dashboard
         let isDarkTheme = false;
         let lastDataReceived = null;
+        let connectionStatus = false;
+        let weightHistory = [];
+        let currentWeight = 0;
+        let currentLiquidPercentage = 0;
 
+        // Función para alternar tema
         function toggleTheme() {
             isDarkTheme = !isDarkTheme;
             document.body.classList.toggle('dark-theme', isDarkTheme);
             
             const toggle = document.querySelector('.color-scheme-toggle');
             toggle.textContent = isDarkTheme ? '☀️ Tema Claro' : '🌙 Tema Oscuro';
+            
+            // Guardar preferencia
+            localStorage.setItem('kontrolgas_theme', isDarkTheme ? 'dark' : 'light');
+        }
+
+        // Cargar tema guardado
+        function loadTheme() {
+            const savedTheme = localStorage.getItem('kontrolgas_theme');
+            if (savedTheme === 'dark') {
+                isDarkTheme = true;
+                document.body.classList.add('dark-theme');
+                document.querySelector('.color-scheme-toggle').textContent = '☀️ Tema Claro';
+            }
         }
 
         // Función CORREGIDA para actualizar escala Y según peso neto máximo (peso_lleno - peso_vacío)
@@ -878,11 +897,11 @@
             console.log(`Eje Y actualizado: 0 - ${pesoNetoMaximo.toFixed(1)} kg (Peso Lleno: ${fullWeight}kg - Peso Vacío: ${emptyWeight}kg)`);
         }
 
-        // Actualizar medidor de batería
+        // Actualizar medidor de batería CORREGIDO
         function updateBatteryMeter(data) {
             if (data.battery_percentage !== undefined) {
-                const percentage = data.battery_percentage;
-                const voltage = data.battery_voltage || '--';
+                const percentage = parseInt(data.battery_percentage) || 0;
+                const voltage = parseFloat(data.battery_voltage) || 0;
                 const icon = data.battery_icon || '🔋';
                 const isLow = data.battery_is_low || false;
                 const isCritical = data.battery_is_critical || false;
@@ -890,7 +909,7 @@
                 // Actualizar elementos
                 document.getElementById('batteryIcon').textContent = icon;
                 document.getElementById('batteryPercentage').textContent = percentage + '%';
-                document.getElementById('batteryVoltage').textContent = voltage + ' V';
+                document.getElementById('batteryVoltage').textContent = voltage.toFixed(2) + ' V';
                 
                 // Actualizar barra de progreso
                 const progressFill = document.getElementById('batteryProgressFill');
@@ -899,35 +918,44 @@
                 // Actualizar color según estado
                 let progressColor = '#48bb78'; // Verde por defecto
                 
-                if (isCritical) {
+                if (isCritical || percentage <= 15) {
                     progressColor = '#f56565'; // Rojo crítico
-                } else if (isLow) {
+                } else if (isLow || percentage <= 30) {
                     progressColor = '#f6ad55'; // Naranja bajo
                 }
                 
                 progressFill.style.background = progressColor;
+                
+                console.log(`Batería actualizada: ${percentage}% (${voltage.toFixed(2)}V) - ${icon}`);
             }
         }
 
+        // Actualizar gauge semicircular CORREGIDO
         function updateGauge(percentage) {
             const gauge = document.getElementById('liquidGauge');
-            const circumference = 220;
-            const offset = circumference - (percentage / 100) * circumference;
+            if (!gauge) return;
             
-            gauge.style.strokeDasharray = `${(percentage / 100) * circumference} ${circumference}`;
+            const circumference = 220;
+            const normalizedPercentage = Math.max(0, Math.min(100, percentage));
+            const offset = (normalizedPercentage / 100) * circumference;
+            
+            gauge.style.strokeDasharray = `${offset} ${circumference}`;
             
             // Cambiar color según el nivel
-            if (percentage < 20) {
-                gauge.style.stroke = '#f56565';
-            } else if (percentage < 50) {
-                gauge.style.stroke = '#f6ad55';
+            if (normalizedPercentage < 20) {
+                gauge.style.stroke = '#f56565'; // Rojo
+            } else if (normalizedPercentage < 50) {
+                gauge.style.stroke = '#f6ad55'; // Naranja
             } else {
-                gauge.style.stroke = '#48bb78';
+                gauge.style.stroke = '#48bb78'; // Verde
             }
+            
+            console.log(`Gauge actualizado: ${normalizedPercentage.toFixed(1)}%`);
         }
 
+        // Función principal para actualizar el dashboard CORREGIDA
         function updateDashboard(data) {
-            console.log('Datos recibidos del ESP32:', data);
+            console.log('📊 Actualizando dashboard con datos del ESP32:', data);
             
             // Actualizar estado de conexión
             const statusElement = document.getElementById('connectionStatus');
@@ -935,10 +963,12 @@
             
             statusElement.textContent = 'Conectado';
             indicator.className = 'status-indicator status-connected';
+            connectionStatus = true;
             
             // Actualizar peso digital
             if (data.weight !== undefined) {
-                const weight = parseFloat(data.weight);
+                const weight = parseFloat(data.weight) || 0;
+                currentWeight = weight;
                 document.getElementById('digitalWeight').textContent = weight.toFixed(2);
                 
                 // Calcular nivel de líquido basado en configuración
@@ -946,12 +976,16 @@
                 const fullWeight = parseFloat(document.getElementById('fullWeight').value) || 13;
                 
                 if (fullWeight > emptyWeight) {
-                    const percentage = Math.max(0, Math.min(100, 
+                    const percentage = Math.max(0, Math.min(100,
                         ((weight - emptyWeight) / (fullWeight - emptyWeight)) * 100
                     ));
                     
+                    currentLiquidPercentage = percentage;
                     document.getElementById('liquidLevel').textContent = percentage.toFixed(1) + '%';
                     updateGauge(percentage);
+                    
+                    // Agregar al historial
+                    addToWeightHistory(weight, percentage);
                 }
             }
             
@@ -959,19 +993,44 @@
             updateBatteryMeter(data);
             
             lastDataReceived = Date.now();
+            console.log('✅ Dashboard actualizado correctamente');
         }
 
+        // Agregar datos al historial
+        function addToWeightHistory(weight, percentage) {
+            const now = new Date();
+            const timeKey = now.getHours() + ':' + now.getMinutes().toString().padStart(2, '0');
+            
+            // Mantener solo las últimas 24 horas de datos (144 puntos = 24h * 6 puntos/hora)
+            if (weightHistory.length > 144) {
+                weightHistory.shift();
+            }
+            
+            weightHistory.push({
+                time: timeKey,
+                weight: weight,
+                percentage: percentage,
+                timestamp: now.getTime()
+            });
+            
+            console.log(`📈 Historial actualizado: ${weightHistory.length} puntos`);
+        }
+
+        // Verificar estado de conexión
         function checkConnectionStatus() {
             const now = Date.now();
             const statusElement = document.getElementById('connectionStatus');
             const indicator = document.getElementById('connectionIndicator');
             
-            if (!lastDataReceived || (now - lastDataReceived) > 120000) {
+            if (!lastDataReceived || (now - lastDataReceived) > 120000) { // 2 minutos sin datos
                 statusElement.textContent = 'Desconectado';
                 indicator.className = 'status-indicator status-disconnected';
+                connectionStatus = false;
+                console.log('⚠️ Conexión perdida con ESP32');
             }
         }
 
+        // Guardar configuración
         function saveConfiguration() {
             const emptyWeight = document.getElementById('emptyWeight').value;
             const fullWeight = document.getElementById('fullWeight').value;
@@ -981,38 +1040,49 @@
                 const fullVal = parseFloat(fullWeight);
                 
                 if (fullVal <= emptyVal) {
-                    alert('El peso lleno debe ser mayor que el peso vacío');
+                    alert('❌ El peso lleno debe ser mayor que el peso vacío');
                     return;
                 }
                 
-                localStorage.setItem('emptyWeight', emptyWeight);
-                localStorage.setItem('fullWeight', fullWeight);
+                localStorage.setItem('kontrolgas_empty_weight', emptyWeight);
+                localStorage.setItem('kontrolgas_full_weight', fullWeight);
                 
                 // Actualizar el gráfico con los nuevos valores
                 updateYAxisAndGrid();
                 
+                // Recalcular porcentaje actual si hay peso
+                if (currentWeight > 0) {
+                    const newPercentage = Math.max(0, Math.min(100,
+                        ((currentWeight - emptyVal) / (fullVal - emptyVal)) * 100
+                    ));
+                    document.getElementById('liquidLevel').textContent = newPercentage.toFixed(1) + '%';
+                    updateGauge(newPercentage);
+                }
+                
                 const pesoNeto = fullVal - emptyVal;
-                alert(`Configuración guardada correctamente\nPeso neto máximo: ${pesoNeto.toFixed(1)} kg`);
+                alert(`✅ Configuración guardada correctamente\nPeso neto máximo: ${pesoNeto.toFixed(1)} kg`);
             } else {
-                alert('Por favor, complete todos los campos');
+                alert('❌ Por favor, complete todos los campos');
             }
         }
 
+        // Restablecer configuración
         function resetConfiguration() {
             document.getElementById('emptyWeight').value = '';
             document.getElementById('fullWeight').value = '';
-            localStorage.removeItem('emptyWeight');
-            localStorage.removeItem('fullWeight');
+            localStorage.removeItem('kontrolgas_empty_weight');
+            localStorage.removeItem('kontrolgas_full_weight');
             
             // Actualizar el gráfico con valores por defecto
             updateYAxisAndGrid();
             
-            alert('Configuración restablecida');
+            alert('🔄 Configuración restablecida');
         }
 
+        // Cargar configuración guardada
         function loadConfiguration() {
-            const emptyWeight = localStorage.getItem('emptyWeight');
-            const fullWeight = localStorage.getItem('fullWeight');
+            const emptyWeight = localStorage.getItem('kontrolgas_empty_weight');
+            const fullWeight = localStorage.getItem('kontrolgas_full_weight');
             
             if (emptyWeight) document.getElementById('emptyWeight').value = emptyWeight;
             if (fullWeight) document.getElementById('fullWeight').value = fullWeight;
@@ -1021,12 +1091,17 @@
             updateYAxisAndGrid();
         }
 
-        // Simular datos para pruebas (remover en producción)
+        // Simular datos para pruebas (MEJORADO)
         function simulateData() {
+            // Solo simular si no hay datos reales recientes
+            if (lastDataReceived && (Date.now() - lastDataReceived) < 30000) {
+                return; // Hay datos reales recientes, no simular
+            }
+            
             const testData = {
-                device_id: 'KG_TEST123',
-                firmware_version: 'v80.23-TEST',
-                weight: (Math.random() * 8 + 5).toFixed(2), // Entre 5kg y 13kg para el ejemplo
+                device_id: 'ESP32-KG-DEMO',
+                firmware_version: 'v80.32-DEMO',
+                weight: (Math.random() * 8 + 5).toFixed(2), // Entre 5kg y 13kg
                 raw_value: Math.floor(Math.random() * 100000),
                 calibrated: true,
                 tara_set: true,
@@ -1035,47 +1110,121 @@
                 battery_icon: Math.random() > 0.7 ? '🟡' : '🟢',
                 battery_is_low: Math.random() > 0.8,
                 battery_is_critical: Math.random() > 0.95,
-                battery_hours_remaining: Math.floor(Math.random() * 24),
-                battery_capacity_mah: 3000,
                 wifi_connected: true,
-                wifi_ssid: 'TestNetwork'
+                wifi_ssid: 'TestNetwork',
+                timestamp: new Date().toISOString()
             };
             
             updateDashboard(testData);
         }
 
+        // FUNCIÓN PARA PROCESAR DATOS REALES DEL ESP32
+        function processRealESP32Data(jsonData) {
+            try {
+                console.log('🔄 Procesando datos REALES del ESP32:', jsonData);
+                updateDashboard(jsonData);
+                lastDataReceived = Date.now();
+                connectionStatus = true;
+                
+                // Marcar que se recibieron datos reales (detener simulación)
+                console.log('✅ Datos reales recibidos - Simulación desactivada');
+            } catch (error) {
+                console.error('❌ Error procesando datos reales del ESP32:', error);
+            }
+        }
+
         // Event listeners para actualizar el gráfico cuando cambien los pesos
         document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Inicializando KontrolGas Dashboard...');
+            
+            // Cargar configuraciones guardadas
             loadConfiguration();
+            loadTheme();
+            
+            // Configurar verificación de conexión
             setInterval(checkConnectionStatus, 30000);
             
-            // Actualizar gráfico cuando cambien los valores de peso
+            // Event listeners para actualización dinámica del gráfico
             document.getElementById('emptyWeight').addEventListener('input', updateYAxisAndGrid);
             document.getElementById('fullWeight').addEventListener('input', updateYAxisAndGrid);
             
-            // Simular datos cada 5 segundos para pruebas
-            setInterval(simulateData, 5000);
-            simulateData();
+            // Iniciar simulación de datos para pruebas
+            setInterval(simulateData, 5000); // Cada 5 segundos
+            simulateData(); // Primera ejecución inmediata
             
-            console.log('Dashboard KontrolGas inicializado correctamente');
+            console.log('✅ Dashboard KontrolGas inicializado correctamente');
         });
 
-        // Escuchar datos del ESP32
+        // INTEGRACIÓN CON ESP32 - Múltiples métodos de comunicación
+
+        // Método 1: Escuchar mensajes del ESP32 (PostMessage API)
         window.addEventListener('message', function(event) {
             if (event.data && typeof event.data === 'string') {
                 try {
                     const data = JSON.parse(event.data);
-                    updateDashboard(data);
+                    processRealESP32Data(data);
                 } catch (e) {
-                    console.error('Error parsing data:', e);
+                    console.error('❌ Error parsing message data:', e);
                 }
             }
         });
 
-        // Para recibir datos POST del ESP32
-        if (window.location.protocol === 'https:') {
-            console.log('Dashboard listo para recibir datos del ESP32');
+        // Método 2: HTTP Polling (descomenta para usar)
+        /*
+        setInterval(function() {
+            fetch('http://192.168.1.100/data') // Cambia por la IP de tu ESP32
+                .then(response => response.json())
+                .then(data => processRealESP32Data(data))
+                .catch(error => {
+                    console.log('⚠️ No se pudo conectar al ESP32:', error.message);
+                    // La simulación continuará automáticamente
+                });
+        }, 10000); // Consultar cada 10 segundos
+        */
+
+        // Método 3: WebSocket (descomenta para usar)
+        /*
+        try {
+            const ws = new WebSocket('ws://192.168.1.100:81'); // Cambia por la IP de tu ESP32
+            ws.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                processRealESP32Data(data);
+            };
+            ws.onerror = function(error) {
+                console.log('⚠️ WebSocket error:', error);
+            };
+            ws.onclose = function() {
+                console.log('🔌 WebSocket desconectado');
+            };
+        } catch (error) {
+            console.log('⚠️ No se pudo establecer WebSocket:', error);
         }
+        */
+
+        // Método 4: Server-Sent Events (descomenta para usar)
+        /*
+        try {
+            const eventSource = new EventSource('http://192.168.1.100/events'); // Cambia por la IP de tu ESP32
+            eventSource.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                processRealESP32Data(data);
+            };
+            eventSource.onerror = function(error) {
+                console.log('⚠️ EventSource error:', error);
+            };
+        } catch (error) {
+            console.log('⚠️ No se pudo establecer EventSource:', error);
+        }
+        */
+
+        // Para debugging - función global para inyectar datos manualmente
+        window.injectTestData = function(data) {
+            console.log('🧪 Inyectando datos de prueba:', data);
+            processRealESP32Data(data);
+        };
+
+        console.log('📡 Dashboard listo para recibir datos del ESP32');
+        console.log('🔧 Para conectar: descomenta el método de comunicación preferido en el JavaScript');
     </script>
 </body>
 </html>
