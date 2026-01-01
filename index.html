@@ -35,11 +35,19 @@
         }
         
         .logo {
-            font-size: 3rem;
+            font-size: 2rem;
             margin-bottom: 15px;
+            width: 60px;
+            height: 60px;
+            margin: 0 auto 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         
         .logo svg {
+            width: 60px;
+            height: 60px;
             filter: drop-shadow(0 2px 8px rgba(0,0,0,0.1));
             transition: transform 0.3s ease;
         }
@@ -226,6 +234,9 @@
             background: #fafbfc;
             border-radius: 12px;
             padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         
         .chart-canvas {
@@ -618,6 +629,9 @@
                 
                 <div class="chart-container">
                     <canvas class="chart-canvas" id="consumptionChart"></canvas>
+                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #718096; font-size: 1rem;">
+                        Gráfico de consumo aquí
+                    </div>
                 </div>
             </div>
         </div>
