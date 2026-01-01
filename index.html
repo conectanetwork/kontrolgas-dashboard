@@ -35,17 +35,11 @@
         }
         
         .logo {
-            width: 80px;
-            height: 80px;
-            margin: 0 auto 15px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            font-size: 3rem;
+            margin-bottom: 15px;
         }
         
         .logo svg {
-            width: 80px;
-            height: 80px;
             filter: drop-shadow(0 2px 8px rgba(0,0,0,0.1));
             transition: transform 0.3s ease;
         }
@@ -239,7 +233,7 @@
             height: 100%;
         }
         
-        /* BARRA DE ESTADO MINIMALISTA CON MEDIDOR DE BATERÍA */
+        /* BARRA DE ESTADO MINIMALISTA */
         .status-bar {
             background: white;
             border-radius: 16px;
@@ -281,47 +275,49 @@
             50% { opacity: 0.4; }
         }
 
-        /* MEDIDOR DE VOLTAJE DE BATERÍA EN LA BARRA DE ESTADO */
-        .battery-meter-status {
+        /* NUEVO: Medidor de Batería en la Barra de Estado */
+        .battery-meter {
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 12px;
+            font-weight: 300;
+            font-size: 0.9rem;
             background: #fafbfc;
-            padding: 15px 20px;
+            padding: 12px 18px;
             border-radius: 12px;
             border: 1px solid #e2e8f0;
-            min-width: 300px;
         }
 
-        .battery-icon-status {
+        .battery-icon {
             font-size: 1.2em;
         }
 
-        .battery-info-status {
-            flex-grow: 1;
+        .battery-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
         }
 
-        .battery-percentage-status {
-            font-size: 1.1rem;
+        .battery-percentage {
             font-weight: 500;
             color: #2d3748;
-            margin-bottom: 2px;
+            font-size: 0.95rem;
         }
 
-        .battery-voltage-status {
-            font-size: 0.85rem;
+        .battery-voltage {
+            font-size: 0.8rem;
             color: #718096;
         }
 
-        .battery-progress-status {
-            width: 80px;
+        .battery-progress {
+            width: 60px;
             height: 6px;
             background: #e2e8f0;
             border-radius: 3px;
             overflow: hidden;
         }
 
-        .battery-progress-fill-status {
+        .battery-progress-fill {
             height: 100%;
             transition: width 0.5s ease;
             border-radius: 3px;
@@ -479,16 +475,16 @@
             background: #4a5568;
         }
 
-        .dark-theme .battery-meter-status {
+        .dark-theme .battery-meter {
             background: #4a5568;
             border-color: #718096;
         }
 
-        .dark-theme .battery-percentage-status {
+        .dark-theme .battery-percentage {
             color: #e2e8f0;
         }
 
-        .dark-theme .battery-progress-status {
+        .dark-theme .battery-progress {
             background: #718096;
         }
         
@@ -528,9 +524,9 @@
                 height: 170px;
             }
 
-            .battery-meter-status {
-                min-width: auto;
+            .battery-meter {
                 width: 100%;
+                justify-content: center;
             }
         }
     </style>
@@ -562,22 +558,21 @@
             <div class="optimization-badge">🚀 Nivel 2: Envío Condicional | 97% Ahorro</div>
         </header>
 
-        <!-- BARRA DE ESTADO CON MEDIDOR DE BATERÍA -->
         <div class="status-bar">
             <div class="status-item">
                 <div class="status-indicator status-connected" id="connectionIndicator"></div>
                 <span id="connectionStatus">Conectando...</span>
             </div>
 
-            <!-- MEDIDOR DE VOLTAJE DE BATERÍA -->
-            <div class="battery-meter-status">
-                <div class="battery-icon-status" id="batteryIconStatus">🔋</div>
-                <div class="battery-info-status">
-                    <div class="battery-percentage-status" id="batteryPercentageStatus">--%</div>
-                    <div class="battery-voltage-status" id="batteryVoltageStatus">-- V</div>
+            <!-- NUEVO: Medidor de Voltaje de Batería -->
+            <div class="battery-meter">
+                <div class="battery-icon" id="batteryIcon">🔋</div>
+                <div class="battery-info">
+                    <div class="battery-percentage" id="batteryPercentage">--%</div>
+                    <div class="battery-voltage" id="batteryVoltage">-- V</div>
                 </div>
-                <div class="battery-progress-status">
-                    <div class="battery-progress-fill-status" id="batteryProgressFillStatus" 
+                <div class="battery-progress">
+                    <div class="battery-progress-fill" id="batteryProgressFill" 
                          style="width: 0%; background: #48bb78;"></div>
                 </div>
             </div>
@@ -669,8 +664,8 @@
             toggle.textContent = isDarkTheme ? '☀️ Tema Claro' : '🌙 Tema Oscuro';
         }
 
-        // Actualizar medidor de batería en la barra de estado
-        function updateBatteryMeterStatus(data) {
+        // Actualizar medidor de batería
+        function updateBatteryMeter(data) {
             if (data.battery_percentage !== undefined) {
                 const percentage = data.battery_percentage;
                 const voltage = data.battery_voltage || '--';
@@ -678,13 +673,13 @@
                 const isLow = data.battery_is_low || false;
                 const isCritical = data.battery_is_critical || false;
                 
-                // Actualizar elementos del medidor en la barra de estado
-                document.getElementById('batteryIconStatus').textContent = icon;
-                document.getElementById('batteryPercentageStatus').textContent = percentage + '%';
-                document.getElementById('batteryVoltageStatus').textContent = voltage + ' V';
+                // Actualizar elementos
+                document.getElementById('batteryIcon').textContent = icon;
+                document.getElementById('batteryPercentage').textContent = percentage + '%';
+                document.getElementById('batteryVoltage').textContent = voltage + ' V';
                 
                 // Actualizar barra de progreso
-                const progressFill = document.getElementById('batteryProgressFillStatus');
+                const progressFill = document.getElementById('batteryProgressFill');
                 progressFill.style.width = percentage + '%';
                 
                 // Actualizar color según estado
@@ -746,8 +741,8 @@
                 }
             }
             
-            // Actualizar medidor de batería en la barra de estado
-            updateBatteryMeterStatus(data);
+            // Actualizar medidor de batería
+            updateBatteryMeter(data);
             
             lastDataReceived = Date.now();
         }
@@ -839,7 +834,7 @@
             }
         });
 
-        // Para recibir datos POST del ESP32 (implementar endpoint)
+        // Para recibir datos POST del ESP32
         if (window.location.protocol === 'https:') {
             console.log('Dashboard listo para recibir datos del ESP32');
         }
