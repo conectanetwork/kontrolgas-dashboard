@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KontrolGas - Dashboard Nivel 2</title>
+    <title>KontrolGas Dashboard</title>
     <style>
         * {
             margin: 0;
@@ -12,7 +12,7 @@
         }
         
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             background: #f5f7fa;
             min-height: 100vh;
             color: #2d3748;
@@ -35,11 +35,17 @@
         }
         
         .logo {
-            font-size: 3rem;
-            margin-bottom: 15px;
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         
         .logo svg {
+            width: 80px;
+            height: 80px;
             filter: drop-shadow(0 2px 8px rgba(0,0,0,0.1));
             transition: transform 0.3s ease;
         }
@@ -233,7 +239,7 @@
             height: 100%;
         }
         
-        /* BARRA DE ESTADO MINIMALISTA */
+        /* BARRA DE ESTADO MINIMALISTA CON MEDIDOR DE BATERÍA */
         .status-bar {
             background: white;
             border-radius: 16px;
@@ -273,6 +279,52 @@
         @keyframes pulse {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.4; }
+        }
+
+        /* MEDIDOR DE VOLTAJE DE BATERÍA EN LA BARRA DE ESTADO */
+        .battery-meter-status {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background: #fafbfc;
+            padding: 15px 20px;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            min-width: 300px;
+        }
+
+        .battery-icon-status {
+            font-size: 1.2em;
+        }
+
+        .battery-info-status {
+            flex-grow: 1;
+        }
+
+        .battery-percentage-status {
+            font-size: 1.1rem;
+            font-weight: 500;
+            color: #2d3748;
+            margin-bottom: 2px;
+        }
+
+        .battery-voltage-status {
+            font-size: 0.85rem;
+            color: #718096;
+        }
+
+        .battery-progress-status {
+            width: 80px;
+            height: 6px;
+            background: #e2e8f0;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .battery-progress-fill-status {
+            height: 100%;
+            transition: width 0.5s ease;
+            border-radius: 3px;
         }
         
         /* PANEL DE CONFIGURACIÓN */
@@ -426,6 +478,19 @@
         .dark-theme .chart-container {
             background: #4a5568;
         }
+
+        .dark-theme .battery-meter-status {
+            background: #4a5568;
+            border-color: #718096;
+        }
+
+        .dark-theme .battery-percentage-status {
+            color: #e2e8f0;
+        }
+
+        .dark-theme .battery-progress-status {
+            background: #718096;
+        }
         
         @media (max-width: 768px) {
             .dashboard-grid {
@@ -462,631 +527,322 @@
                 width: 300px;
                 height: 170px;
             }
+
+            .battery-meter-status {
+                min-width: auto;
+                width: 100%;
+            }
         }
     </style>
 </head>
 <body>
-    <button class="color-scheme-toggle" onclick="toggleColorScheme()">🌙 Tema Oscuro</button>
+    <button class="color-scheme-toggle" onclick="toggleTheme()">
+        🌙 Tema Oscuro
+    </button>
     
     <div class="container">
-        <div class="header">
+        <header class="header">
             <div class="logo">
-                <svg width="60" height="60" viewBox="0 0 60 60" fill="none">
-                    <!-- Pista base -->
-                    <circle cx="30" cy="30" r="25" fill="none" stroke="#e2e8f0" stroke-width="4"/>
-                    <!-- Progreso -->
-                    <circle cx="30" cy="30" r="25" fill="none" stroke="#48bb78" stroke-width="4" 
-                            stroke-dasharray="78.5 78.5" stroke-dashoffset="39.25" transform="rotate(-90 30 30)"/>
-                    <!-- Centro -->
-                    <circle cx="30" cy="30" r="15" fill="#4299e1"/>
-                    <!-- Letra K -->
-                    <text x="30" y="37" text-anchor="middle" fill="white" font-size="16" font-weight="bold">K</text>
-                    <!-- Llama -->
-                    <path d="M30 8 C28 10, 26 14, 28 18 C29 20, 31 20, 32 18 C34 14, 32 10, 30 8 Z" 
-                          fill="#f56565"/>
+                <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#667eea"/>
+                            <stop offset="100%" style="stop-color:#764ba2"/>
+                        </linearGradient>
+                    </defs>
+                    <circle cx="50" cy="50" r="45" fill="url(#logoGradient)" opacity="0.1"/>
+                    <circle cx="50" cy="50" r="35" fill="none" stroke="url(#logoGradient)" stroke-width="3"/>
+                    <circle cx="50" cy="50" r="25" fill="none" stroke="url(#logoGradient)" stroke-width="2"/>
+                    <text x="50" y="58" text-anchor="middle" fill="url(#logoGradient)" font-size="24" font-weight="bold">K</text>
                 </svg>
             </div>
+            
             <h1 class="title">KontrolGas</h1>
-            <div class="subtitle">Monitoreo de Gas Profesional</div>
+            <p class="subtitle">Monitoreo de Gas Profesional</p>
             <div class="optimization-badge">🚀 Nivel 2: Envío Condicional | 97% Ahorro</div>
-        </div>
-        
+        </header>
+
+        <!-- BARRA DE ESTADO CON MEDIDOR DE BATERÍA -->
         <div class="status-bar">
             <div class="status-item">
-                <div class="status-indicator status-disconnected" id="connectionIndicator"></div>
+                <div class="status-indicator status-connected" id="connectionIndicator"></div>
                 <span id="connectionStatus">Conectando...</span>
             </div>
-            <div class="status-item">
-                <strong>Cliente ESP32:</strong> <span id="clientId">-</span>
-            </div>
-            <div class="status-item">
-                <strong>Última Actualización:</strong> <span id="lastUpdate">-</span>
-            </div>
-            <div class="status-item">
-                <strong>RSSI WiFi:</strong> <span id="rssi">- dBm</span>
+
+            <!-- MEDIDOR DE VOLTAJE DE BATERÍA -->
+            <div class="battery-meter-status">
+                <div class="battery-icon-status" id="batteryIconStatus">🔋</div>
+                <div class="battery-info-status">
+                    <div class="battery-percentage-status" id="batteryPercentageStatus">--%</div>
+                    <div class="battery-voltage-status" id="batteryVoltageStatus">-- V</div>
+                </div>
+                <div class="battery-progress-status">
+                    <div class="battery-progress-fill-status" id="batteryProgressFillStatus" 
+                         style="width: 0%; background: #48bb78;"></div>
+                </div>
             </div>
         </div>
-        
+
         <div class="dashboard-grid">
-            <!-- GRÁFICO SEMICIRCULAR SVG AGRANDADO -->
             <div class="card gauge-card">
-                <h3 class="card-title">📊 Nivel de Líquido</h3>
+                <h3 class="card-title">
+                    <span>📊</span>
+                    Nivel de Líquido
+                </h3>
+                
                 <div class="gauge-container">
-                    <svg class="gauge-svg" viewBox="0 0 240 140">
-                        <!-- Pista de fondo más grande -->
-                        <path class="gauge-track" d="M 30 110 A 90 90 0 0 1 210 110" stroke-dasharray="282.7" stroke-dashoffset="0"></path>
-                        <!-- Progreso más grande -->
-                        <path class="gauge-fill" id="gaugeFill" d="M 30 110 A 90 90 0 0 1 210 110" stroke-dasharray="282.7" stroke-dashoffset="282.7"></path>
+                    <svg class="gauge-svg" viewBox="0 0 200 120">
+                        <path class="gauge-track" d="M 30 90 A 70 70 0 0 1 170 90" stroke-linecap="round"/>
+                        <path class="gauge-fill" d="M 30 90 A 70 70 0 0 1 170 90" 
+                              stroke-dasharray="0 220" id="liquidGauge" stroke-linecap="round"/>
                     </svg>
                     <div class="gauge-center">
-                        <div class="gauge-percentage" id="percentage">0.0%</div>
+                        <div class="gauge-percentage" id="liquidLevel">0.0%</div>
                         <div class="gauge-label">Disponible</div>
                     </div>
                 </div>
             </div>
             
-            <!-- Visor Digital con Fondo Plomo -->
             <div class="card digital-card">
-                <h3 class="card-title">🔢 Peso Digital</h3>
+                <h3 class="card-title">
+                    <span>🔢</span>
+                    Peso Digital
+                </h3>
+                
                 <div class="digital-display">
                     <div class="digital-value" id="digitalWeight">0.00</div>
                     <div class="digital-unit">kg</div>
                 </div>
             </div>
             
-            <!-- Gráfico de Consumo -->
             <div class="card chart-card">
-                <h3 class="card-title">📈 Consumo Últimas 24 Horas</h3>
+                <h3 class="card-title">
+                    <span>📈</span>
+                    Consumo Últimas 24 Horas
+                </h3>
+                
                 <div class="chart-container">
                     <canvas class="chart-canvas" id="consumptionChart"></canvas>
                 </div>
             </div>
         </div>
-        
+
         <div class="config-panel">
-            <h3 class="config-title">⚙️ Configuración de Pesos</h3>
+            <h2 class="config-title">
+                <span>⚙️</span>
+                Configuración de Pesos
+            </h2>
+            
             <div class="config-inputs">
                 <div class="input-group">
-                    <label class="input-label" for="emptyWeight">Peso Vacío (kg)</label>
-                    <input type="number" class="input-field" id="emptyWeight" value="5.0" step="0.1" min="0">
+                    <label class="input-label">Peso Vacío (kg)</label>
+                    <input type="number" class="input-field" id="emptyWeight" step="0.01" placeholder="0.00">
                 </div>
                 <div class="input-group">
-                    <label class="input-label" for="fullWeight">Peso Lleno (kg)</label>
-                    <input type="number" class="input-field" id="fullWeight" value="15.0" step="0.1" min="0">
+                    <label class="input-label">Peso Lleno (kg)</label>
+                    <input type="number" class="input-field" id="fullWeight" step="0.01" placeholder="0.00">
                 </div>
             </div>
+            
             <div class="btn-group">
                 <button class="btn btn-primary" onclick="saveConfiguration()">
-                    💾 Guardar Configuración
+                    <span>💾</span>
+                    Guardar Configuración
                 </button>
                 <button class="btn btn-secondary" onclick="resetConfiguration()">
-                    🔄 Restablecer
+                    <span>🔄</span>
+                    Restablecer
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- Chart.js Library -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- MQTT.js Library -->
-    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-    
     <script>
-        // Variables globales
-        let mqttClient = null;
-        let emptyWeight = 5.0;
-        let fullWeight = 15.0;
-        let lastWeightData = null;
-        let connectionAttempts = 0;
-        const maxConnectionAttempts = 5;
-        let consumptionChart = null;
-        let currentTheme = 'light';
-        
-        // Configuración MQTT
-        const brokerUrl = 'wss://test.mosquitto.org:8081';
-        const topic = 'kontrol-gas/esp32/weight';
-        
-        // Inicializar dashboard
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 Iniciando Dashboard KontrolGas - Nivel 2');
-            console.log('📊 Optimizaciones: Envío Condicional | 97% Ahorro');
-            loadConfiguration();
-            loadTheme();
-            initializeChart();
-            connectMQTT();
+        let isDarkTheme = false;
+        let lastDataReceived = null;
+
+        function toggleTheme() {
+            isDarkTheme = !isDarkTheme;
+            document.body.classList.toggle('dark-theme', isDarkTheme);
             
-            // ✅ OPTIMIZACIÓN: Actualización cada 10 segundos (antes 3s)
-            setInterval(updateDisplay, 10000);
-            
-            // ✅ OPTIMIZACIÓN: Guardar datos cada 2 horas (antes 1 hora)
-            setInterval(saveHistoricalData, 7200000);
-            
-            // ✅ OPTIMIZACIÓN: Comprimir datos cada 6 horas
-            setInterval(compressHistoricalData, 21600000);
-        });
-        
-        function toggleColorScheme() {
-            const toggleBtn = document.querySelector('.color-scheme-toggle');
-            
-            if (currentTheme === 'light') {
-                document.body.classList.add('dark-theme');
-                currentTheme = 'dark';
-                toggleBtn.textContent = '☀️ Tema Claro';
-                localStorage.setItem('theme', 'dark');
-            } else {
-                document.body.classList.remove('dark-theme');
-                currentTheme = 'light';
-                toggleBtn.textContent = '🌙 Tema Oscuro';
-                localStorage.setItem('theme', 'light');
-            }
-            
-            if (consumptionChart) {
-                updateChartTheme();
-            }
+            const toggle = document.querySelector('.color-scheme-toggle');
+            toggle.textContent = isDarkTheme ? '☀️ Tema Claro' : '🌙 Tema Oscuro';
         }
-        
-        function updateChartTheme() {
-            const isDark = currentTheme === 'dark';
-            const chartColor = isDark ? '#667eea' : '#4299e1';
-            const gridColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
-            const textColor = isDark ? '#e2e8f0' : '#2d3748';
-            
-            consumptionChart.data.datasets[0].borderColor = chartColor;
-            consumptionChart.data.datasets[0].backgroundColor = chartColor + '20';
-            consumptionChart.data.datasets[0].pointBackgroundColor = chartColor;
-            
-            consumptionChart.options.scales.x.grid.color = gridColor;
-            consumptionChart.options.scales.y.grid.color = gridColor;
-            consumptionChart.options.scales.x.ticks.color = textColor;
-            consumptionChart.options.scales.y.ticks.color = textColor;
-            consumptionChart.options.scales.x.title.color = textColor;
-            consumptionChart.options.scales.y.title.color = textColor;
-            
-            consumptionChart.update();
-        }
-        
-        function loadTheme() {
-            const savedTheme = localStorage.getItem('theme');
-            if (savedTheme === 'dark') {
-                document.body.classList.add('dark-theme');
-                currentTheme = 'dark';
-                document.querySelector('.color-scheme-toggle').textContent = '☀️ Tema Claro';
-            }
-        }
-        
-        function connectMQTT() {
-            connectionAttempts++;
-            console.log(`🔄 Conectando MQTT (intento ${connectionAttempts}/${maxConnectionAttempts})...`);
-            
-            updateConnectionStatus('Conectando...', false);
-            
-            try {
-                const clientId = 'KontrolGas-Dashboard-' + Math.random().toString(16).substr(2, 8);
-                mqttClient = mqtt.connect(brokerUrl, {
-                    clientId: clientId,
-                    keepalive: 30,
-                    reconnectPeriod: 5000,
-                    connectTimeout: 10000
-                });
+
+        // Actualizar medidor de batería en la barra de estado
+        function updateBatteryMeterStatus(data) {
+            if (data.battery_percentage !== undefined) {
+                const percentage = data.battery_percentage;
+                const voltage = data.battery_voltage || '--';
+                const icon = data.battery_icon || '🔋';
+                const isLow = data.battery_is_low || false;
+                const isCritical = data.battery_is_critical || false;
                 
-                mqttClient.on('connect', function() {
-                    console.log('✅ MQTT conectado exitosamente');
-                    updateConnectionStatus('Conectado', true);
-                    connectionAttempts = 0;
-                    
-                    mqttClient.subscribe(topic, function(err) {
-                        if (!err) {
-                            console.log(`📥 Suscrito al topic: ${topic}`);
-                        } else {
-                            console.error('❌ Error suscribiéndose:', err);
-                        }
-                    });
-                });
+                // Actualizar elementos del medidor en la barra de estado
+                document.getElementById('batteryIconStatus').textContent = icon;
+                document.getElementById('batteryPercentageStatus').textContent = percentage + '%';
+                document.getElementById('batteryVoltageStatus').textContent = voltage + ' V';
                 
-                mqttClient.on('message', function(receivedTopic, message) {
-                    if (receivedTopic === topic) {
-                        try {
-                            const data = JSON.parse(message.toString());
-                            
-                            // ✅ PARSEAR JSON COMPACTO - NIVEL 2
-                            lastWeightData = {
-                                weight: data.w || 0,        // "w" → weight
-                                client_id: data.id || '-',  // "id" → client_id
-                                rssi: data.r || 0           // "r" → rssi
-                            };
-                            
-                            console.log('📨 Datos recibidos (compacto):', data);
-                            console.log('📊 Datos parseados:', lastWeightData);
-                            updateDisplay();
-                        } catch (error) {
-                            console.error('❌ Error parseando mensaje:', error);
-                        }
-                    }
-                });
+                // Actualizar barra de progreso
+                const progressFill = document.getElementById('batteryProgressFillStatus');
+                progressFill.style.width = percentage + '%';
                 
-                mqttClient.on('error', function(error) {
-                    console.error('❌ Error MQTT:', error);
-                    updateConnectionStatus('Error de conexión', false);
-                    
-                    if (connectionAttempts < maxConnectionAttempts) {
-                        setTimeout(connectMQTT, 5000);
-                    } else {
-                        updateConnectionStatus('Sin conexión', false);
-                    }
-                });
+                // Actualizar color según estado
+                let progressColor = '#48bb78'; // Verde por defecto
                 
-                mqttClient.on('close', function() {
-                    console.log('🔌 Conexión MQTT cerrada');
-                    updateConnectionStatus('Desconectado', false);
-                });
-                
-            } catch (error) {
-                console.error('💥 Error creando cliente MQTT:', error);
-                updateConnectionStatus('Error crítico', false);
-                
-                if (connectionAttempts < maxConnectionAttempts) {
-                    setTimeout(connectMQTT, 5000);
+                if (isCritical) {
+                    progressColor = '#f56565'; // Rojo crítico
+                } else if (isLow) {
+                    progressColor = '#f6ad55'; // Naranja bajo
                 }
+                
+                progressFill.style.background = progressColor;
             }
         }
-        
-        function updateDisplay() {
-            if (!lastWeightData) {
-                return;
-            }
-            
-            const weight = lastWeightData.weight || 0;
-            const clientId = lastWeightData.client_id || '-';
-            const rssi = lastWeightData.rssi || 0;
-            
-            // Calcular peso neto del líquido
-            const liquidWeight = Math.max(0, weight - emptyWeight);
-            
-            // Calcular porcentaje
-            const totalCapacity = fullWeight - emptyWeight;
-            const percentage = Math.max(0, Math.min(100, (liquidWeight / totalCapacity) * 100));
-            
-            // Actualizar visor digital
-            document.getElementById('digitalWeight').textContent = liquidWeight.toFixed(2);
-            
-            // Actualizar porcentaje con 1 decimal
-            document.getElementById('percentage').textContent = percentage.toFixed(1) + '%';
-            updateGauge(percentage);
-            
-            // Actualizar información de estado
-            document.getElementById('clientId').textContent = clientId;
-            document.getElementById('rssi').textContent = rssi + ' dBm';
-            document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
-            
-            // Agregar punto al gráfico (peso neto)
-            addDataPoint(liquidWeight);
-            
-            console.log(`📊 Peso total: ${weight.toFixed(2)} kg | Líquido: ${liquidWeight.toFixed(2)} kg | Porcentaje: ${percentage.toFixed(1)}%`);
-        }
-        
+
         function updateGauge(percentage) {
-            const gaugeFill = document.getElementById('gaugeFill');
-            const gaugePercentage = document.getElementById('percentage');
-            
-            const circumference = 282.7;
+            const gauge = document.getElementById('liquidGauge');
+            const circumference = 220;
             const offset = circumference - (percentage / 100) * circumference;
             
-            gaugeFill.style.strokeDashoffset = offset;
+            gauge.style.strokeDasharray = `${(percentage / 100) * circumference} ${circumference}`;
             
-            let color;
+            // Cambiar color según el nivel
             if (percentage < 20) {
-                color = '#f56565';
-            } else if (percentage < 40) {
-                color = '#ed8936';
-            } else if (percentage < 70) {
-                color = '#ecc94b';
-            } else if (percentage < 90) {
-                color = '#48bb78';
+                gauge.style.stroke = '#f56565';
+            } else if (percentage < 50) {
+                gauge.style.stroke = '#f6ad55';
             } else {
-                color = '#4299e1';
+                gauge.style.stroke = '#48bb78';
             }
-            
-            gaugeFill.style.stroke = color;
-            gaugePercentage.style.color = color;
         }
-        
-        function updateConnectionStatus(message, isConnected) {
+
+        function updateDashboard(data) {
+            console.log('Datos recibidos del ESP32:', data);
+            
+            // Actualizar estado de conexión
             const statusElement = document.getElementById('connectionStatus');
-            const indicatorElement = document.getElementById('connectionIndicator');
+            const indicator = document.getElementById('connectionIndicator');
             
-            statusElement.textContent = message;
+            statusElement.textContent = 'Conectado';
+            indicator.className = 'status-indicator status-connected';
             
-            if (isConnected) {
-                indicatorElement.className = 'status-indicator status-connected';
-            } else {
-                indicatorElement.className = 'status-indicator status-disconnected';
-            }
-        }
-        
-        function initializeChart() {
-            const ctx = document.getElementById('consumptionChart').getContext('2d');
-            
-            const labels = [];
-            const now = new Date();
-            for (let i = 23; i >= 0; i--) {
-                const time = new Date(now.getTime() - i * 60 * 60 * 1000);
-                labels.push(time.getHours().toString().padStart(2, '0') + ':00');
-            }
-            
-            const isDark = currentTheme === 'dark';
-            const chartColor = isDark ? '#667eea' : '#4299e1';
-            const gridColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
-            const textColor = isDark ? '#e2e8f0' : '#2d3748';
-            
-            const maxCapacity = fullWeight - emptyWeight;
-            
-            consumptionChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Peso Neto (kg)',
-                        data: new Array(24).fill(null),
-                        borderColor: chartColor,
-                        backgroundColor: chartColor + '20',
-                        borderWidth: 2,
-                        fill: true,
-                        tension: 0.4,
-                        pointBackgroundColor: chartColor,
-                        pointBorderColor: '#ffffff',
-                        pointBorderWidth: 1,
-                        pointRadius: 3,
-                        pointHoverRadius: 6
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            display: false
-                        }
-                    },
-                    scales: {
-                        x: {
-                            title: {
-                                display: true,
-                                text: 'Hora',
-                                font: {
-                                    size: 12,
-                                    weight: '300'
-                                },
-                                color: textColor
-                            },
-                            grid: {
-                                color: gridColor,
-                                lineWidth: 1
-                            },
-                            ticks: {
-                                color: textColor,
-                                font: {
-                                    size: 11,
-                                    weight: '300'
-                                }
-                            }
-                        },
-                        y: {
-                            title: {
-                                display: true,
-                                text: 'Peso Neto (kg)',
-                                font: {
-                                    size: 12,
-                                    weight: '300'
-                                },
-                                color: textColor
-                            },
-                            grid: {
-                                color: gridColor,
-                                lineWidth: 1
-                            },
-                            ticks: {
-                                color: textColor,
-                                font: {
-                                    size: 11,
-                                    weight: '300'
-                                }
-                            },
-                            min: 0,
-                            max: maxCapacity,
-                            beginAtZero: true
-                        }
-                    }
-                }
-            });
-            
-            loadHistoricalData();
-        }
-        
-        function addDataPoint(liquidWeight) {
-            if (!consumptionChart) return;
-            
-            const now = new Date();
-            const currentHour = now.getHours();
-            
-            consumptionChart.data.datasets[0].data[currentHour] = liquidWeight;
-            consumptionChart.update('none');
-            
-            console.log(`📈 Gráfico actualizado - Hora: ${currentHour}:00, Peso Neto: ${liquidWeight.toFixed(2)} kg`);
-        }
-        
-        function saveHistoricalData() {
-            if (!lastWeightData) return;
-            
-            const now = new Date();
-            const hourKey = `weight_${now.getFullYear()}_${now.getMonth()}_${now.getDate()}_${now.getHours()}`;
-            
-            const liquidWeight = Math.max(0, lastWeightData.weight - emptyWeight);
-            
-            localStorage.setItem(hourKey, JSON.stringify({
-                weight: liquidWeight,
-                timestamp: now.getTime()
-            }));
-            
-            // Limpiar datos antiguos (más de 24 horas)
-            const cutoffTime = now.getTime() - (24 * 60 * 60 * 1000);
-            const keysToRemove = [];
-            
-            for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i);
-                if (key && key.startsWith('weight_')) {
-                    try {
-                        const data = JSON.parse(localStorage.getItem(key));
-                        if (data.timestamp < cutoffTime) {
-                            keysToRemove.push(key);
-                        }
-                    } catch (e) {
-                        keysToRemove.push(key);
-                    }
-                }
-            }
-            
-            keysToRemove.forEach(key => localStorage.removeItem(key));
-            
-            if (keysToRemove.length > 0) {
-                console.log(`🧹 Limpieza: ${keysToRemove.length} registros antiguos eliminados`);
-            }
-        }
-        
-        // ✅ OPTIMIZACIÓN: Comprimir datos históricos
-        function compressHistoricalData() {
-            const now = new Date();
-            const sixHoursAgo = now.getTime() - (6 * 60 * 60 * 1000);
-            
-            const dataToCompress = {};
-            
-            for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i);
-                if (key && key.startsWith('weight_') && !key.includes('compressed')) {
-                    try {
-                        const data = JSON.parse(localStorage.getItem(key));
-                        if (data.timestamp < sixHoursAgo) {
-                            const hourBlock = Math.floor(data.timestamp / (2 * 60 * 60 * 1000));
-                            if (!dataToCompress[hourBlock]) {
-                                dataToCompress[hourBlock] = [];
-                            }
-                            dataToCompress[hourBlock].push(data.weight);
-                            localStorage.removeItem(key);
-                        }
-                    } catch (e) {
-                        localStorage.removeItem(key);
-                    }
-                }
-            }
-            
-            // Guardar promedios
-            let compressedCount = 0;
-            Object.keys(dataToCompress).forEach(hourBlock => {
-                const weights = dataToCompress[hourBlock];
-                const avgWeight = weights.reduce((a, b) => a + b, 0) / weights.length;
-                const timestamp = parseInt(hourBlock) * (2 * 60 * 60 * 1000);
+            // Actualizar peso digital
+            if (data.weight !== undefined) {
+                const weight = parseFloat(data.weight);
+                document.getElementById('digitalWeight').textContent = weight.toFixed(2);
                 
-                localStorage.setItem(`weight_compressed_${hourBlock}`, JSON.stringify({
-                    weight: avgWeight,
-                    timestamp: timestamp
-                }));
-                compressedCount++;
-            });
-            
-            if (compressedCount > 0) {
-                console.log(`🗜️ Compresión: ${compressedCount} bloques de 2 horas creados`);
-            }
-        }
-        
-        function loadHistoricalData() {
-            if (!consumptionChart) return;
-            
-            const now = new Date();
-            const data = new Array(24).fill(null);
-            
-            for (let i = 0; i < 24; i++) {
-                const time = new Date(now.getTime() - (23 - i) * 60 * 60 * 1000);
-                const hourKey = `weight_${time.getFullYear()}_${time.getMonth()}_${time.getDate()}_${time.getHours()}`;
+                // Calcular nivel de líquido basado en configuración
+                const emptyWeight = parseFloat(document.getElementById('emptyWeight').value) || 0;
+                const fullWeight = parseFloat(document.getElementById('fullWeight').value) || 100;
                 
-                const savedData = localStorage.getItem(hourKey);
-                if (savedData) {
-                    try {
-                        const weightData = JSON.parse(savedData);
-                        data[i] = weightData.weight;
-                    } catch (e) {
-                        console.error('Error cargando dato histórico:', e);
-                    }
+                if (fullWeight > emptyWeight) {
+                    const percentage = Math.max(0, Math.min(100, 
+                        ((weight - emptyWeight) / (fullWeight - emptyWeight)) * 100
+                    ));
+                    
+                    document.getElementById('liquidLevel').textContent = percentage.toFixed(1) + '%';
+                    updateGauge(percentage);
                 }
             }
             
-            consumptionChart.data.datasets[0].data = data;
-            consumptionChart.update();
+            // Actualizar medidor de batería en la barra de estado
+            updateBatteryMeterStatus(data);
+            
+            lastDataReceived = Date.now();
         }
-        
-        function loadConfiguration() {
-            const savedEmpty = localStorage.getItem('emptyWeight');
-            const savedFull = localStorage.getItem('fullWeight');
+
+        function checkConnectionStatus() {
+            const now = Date.now();
+            const statusElement = document.getElementById('connectionStatus');
+            const indicator = document.getElementById('connectionIndicator');
             
-            if (savedEmpty) {
-                emptyWeight = parseFloat(savedEmpty);
-                document.getElementById('emptyWeight').value = emptyWeight;
+            if (!lastDataReceived || (now - lastDataReceived) > 120000) {
+                statusElement.textContent = 'Desconectado';
+                indicator.className = 'status-indicator status-disconnected';
             }
-            
-            if (savedFull) {
-                fullWeight = parseFloat(savedFull);
-                document.getElementById('fullWeight').value = fullWeight;
-            }
-            
-            console.log(`⚙️ Configuración cargada: Vacío=${emptyWeight}kg, Lleno=${fullWeight}kg`);
         }
-        
+
         function saveConfiguration() {
-            emptyWeight = parseFloat(document.getElementById('emptyWeight').value);
-            fullWeight = parseFloat(document.getElementById('fullWeight').value);
+            const emptyWeight = document.getElementById('emptyWeight').value;
+            const fullWeight = document.getElementById('fullWeight').value;
             
-            if (emptyWeight >= fullWeight) {
-                alert('❌ Error: El peso vacío debe ser menor que el peso lleno');
-                return;
+            if (emptyWeight && fullWeight) {
+                localStorage.setItem('emptyWeight', emptyWeight);
+                localStorage.setItem('fullWeight', fullWeight);
+                alert('Configuración guardada correctamente');
+            } else {
+                alert('Por favor, complete todos los campos');
             }
-            
-            localStorage.setItem('emptyWeight', emptyWeight);
-            localStorage.setItem('fullWeight', fullWeight);
-            
-            if (consumptionChart) {
-                const maxCapacity = fullWeight - emptyWeight;
-                consumptionChart.options.scales.y.max = maxCapacity;
-                consumptionChart.update();
-                console.log(`📊 Escala del gráfico actualizada: 0 - ${maxCapacity} kg`);
-            }
-            
-            console.log(`💾 Configuración guardada: Vacío=${emptyWeight}kg, Lleno=${fullWeight}kg`);
-            alert('✅ Configuración guardada correctamente');
-            
-            updateDisplay();
         }
-        
+
         function resetConfiguration() {
-            emptyWeight = 5.0;
-            fullWeight = 15.0;
-            
-            document.getElementById('emptyWeight').value = emptyWeight;
-            document.getElementById('fullWeight').value = fullWeight;
-            
+            document.getElementById('emptyWeight').value = '';
+            document.getElementById('fullWeight').value = '';
             localStorage.removeItem('emptyWeight');
             localStorage.removeItem('fullWeight');
+            alert('Configuración restablecida');
+        }
+
+        function loadConfiguration() {
+            const emptyWeight = localStorage.getItem('emptyWeight');
+            const fullWeight = localStorage.getItem('fullWeight');
             
-            if (consumptionChart) {
-                const maxCapacity = fullWeight - emptyWeight;
-                consumptionChart.options.scales.y.max = maxCapacity;
-                consumptionChart.update();
-                console.log(`📊 Escala del gráfico restablecida: 0 - ${maxCapacity} kg`);
+            if (emptyWeight) document.getElementById('emptyWeight').value = emptyWeight;
+            if (fullWeight) document.getElementById('fullWeight').value = fullWeight;
+        }
+
+        // Simular datos para pruebas (remover en producción)
+        function simulateData() {
+            const testData = {
+                device_id: 'KG_TEST123',
+                firmware_version: 'v80.23-TEST',
+                weight: (Math.random() * 50 + 10).toFixed(2),
+                raw_value: Math.floor(Math.random() * 100000),
+                calibrated: true,
+                tara_set: true,
+                battery_percentage: Math.floor(Math.random() * 100),
+                battery_voltage: (3.0 + Math.random() * 1.2).toFixed(2),
+                battery_icon: Math.random() > 0.7 ? '🟡' : '🟢',
+                battery_is_low: Math.random() > 0.8,
+                battery_is_critical: Math.random() > 0.95,
+                battery_hours_remaining: Math.floor(Math.random() * 24),
+                battery_capacity_mah: 3000,
+                wifi_connected: true,
+                wifi_ssid: 'TestNetwork'
+            };
+            
+            updateDashboard(testData);
+        }
+
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', function() {
+            loadConfiguration();
+            setInterval(checkConnectionStatus, 30000);
+            
+            // Simular datos cada 5 segundos para pruebas
+            setInterval(simulateData, 5000);
+            simulateData();
+            
+            console.log('Dashboard KontrolGas inicializado correctamente');
+        });
+
+        // Escuchar datos del ESP32
+        window.addEventListener('message', function(event) {
+            if (event.data && typeof event.data === 'string') {
+                try {
+                    const data = JSON.parse(event.data);
+                    updateDashboard(data);
+                } catch (e) {
+                    console.error('Error parsing data:', e);
+                }
             }
-            
-            console.log('🔄 Configuración restablecida');
-            alert('🔄 Configuración restablecida a valores por defecto');
-            
-            updateDisplay();
+        });
+
+        // Para recibir datos POST del ESP32 (implementar endpoint)
+        if (window.location.protocol === 'https:') {
+            console.log('Dashboard listo para recibir datos del ESP32');
         }
     </script>
 </body>
-
 </html>
