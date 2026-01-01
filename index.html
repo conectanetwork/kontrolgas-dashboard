@@ -744,7 +744,7 @@
                     
                     <!-- Ejes y cuadrícula del gráfico dinámicos -->
                     <div class="chart-axes">
-                        <!-- Eje Y (Peso neto dinámico) -->
+                        <!-- Eje Y (Peso neto dinámico: 0 hasta peso_lleno - peso_vacío) -->
                         <div class="chart-y-axis" id="yAxis">
                             <!-- Se genera dinámicamente -->
                         </div>
@@ -778,11 +778,11 @@
             <div class="config-inputs">
                 <div class="input-group">
                     <label class="input-label">Peso Vacío (kg)</label>
-                    <input type="number" class="input-field" id="emptyWeight" step="0.01" placeholder="0.00">
+                    <input type="number" class="input-field" id="emptyWeight" step="0.01" placeholder="5.00">
                 </div>
                 <div class="input-group">
                     <label class="input-label">Peso Lleno (kg)</label>
-                    <input type="number" class="input-field" id="fullWeight" step="0.01" placeholder="0.00">
+                    <input type="number" class="input-field" id="fullWeight" step="0.01" placeholder="13.00">
                 </div>
             </div>
             
@@ -811,12 +811,14 @@
             toggle.textContent = isDarkTheme ? '☀️ Tema Claro' : '🌙 Tema Oscuro';
         }
 
-        // Función para actualizar escala Y y cuadrícula según peso neto máximo
+        // Función CORREGIDA para actualizar escala Y según peso neto máximo (peso_lleno - peso_vacío)
         function updateYAxisAndGrid() {
-            const emptyWeight = parseFloat(document.getElementById('emptyWeight').value) || 0;
-            const fullWeight = parseFloat(document.getElementById('fullWeight').value) || 50;
-            const maxPesoNeto = Math.max(fullWeight - emptyWeight, 10); // Mínimo 10kg para evitar división por cero
-
+            const emptyWeight = parseFloat(document.getElementById('emptyWeight').value) || 5;
+            const fullWeight = parseFloat(document.getElementById('fullWeight').value) || 13;
+            
+            // CÁLCULO CORRECTO: Peso neto máximo = peso lleno - peso vacío
+            const pesoNetoMaximo = Math.max(fullWeight - emptyWeight, 1); // Mínimo 1kg para evitar errores
+            
             const yAxis = document.getElementById('yAxis');
             const gridLines = document.getElementById('gridLines');
 
@@ -826,23 +828,23 @@
             yAxis.innerHTML = '';
             gridLines.innerHTML = '';
 
-            // Número de divisiones principales (líneas gruesas)
-            const divisionesPrincipales = 10;
-            // Número de subdivisiones entre cada línea principal (líneas finas)
+            // Número de divisiones principales para el eje Y
+            const divisionesPrincipales = 8;
+            // Subdivisiones entre cada línea principal (líneas finas)
             const subdivisionesPorDivision = 2;
-            const totalLineas = divisionesPrincipales * subdivisionesPorDivision;
+            const totalLineasH = divisionesPrincipales * subdivisionesPorDivision;
 
-            // Crear etiquetas del eje Y (solo en divisiones principales)
+            // Crear etiquetas del eje Y (de pesoNetoMaximo hacia 0)
             for (let i = divisionesPrincipales; i >= 0; i--) {
-                const valor = (maxPesoNeto * i / divisionesPrincipales).toFixed(1);
+                const valor = (pesoNetoMaximo * i / divisionesPrincipales);
                 const label = document.createElement('div');
                 label.classList.add('y-label');
-                label.textContent = valor + ' kg';
+                label.textContent = valor.toFixed(1) + ' kg';
                 yAxis.appendChild(label);
             }
 
             // Crear líneas horizontales (cuadrícula)
-            for (let i = 0; i <= totalLineas; i++) {
+            for (let i = 0; i <= totalLineasH; i++) {
                 const lineaH = document.createElement('div');
                 lineaH.classList.add('grid-line-h');
                 
@@ -851,11 +853,11 @@
                     lineaH.classList.add('major');
                 }
                 
-                lineaH.style.top = (i * 100 / totalLineas) + '%';
+                lineaH.style.top = (i * 100 / totalLineasH) + '%';
                 gridLines.appendChild(lineaH);
             }
 
-            // Líneas verticales para horas (cada 4 horas = 6 intervalos + líneas intermedias)
+            // Líneas verticales para horas (cada 4 horas = 6 intervalos + líneas intermedias cada hora)
             const horasPrincipales = 6; // 0, 4, 8, 12, 16, 20, 24
             const subdivisionesHoras = 4; // Una línea cada hora
             const totalLineasV = horasPrincipales * subdivisionesHoras;
@@ -873,7 +875,7 @@
                 gridLines.appendChild(lineaV);
             }
 
-            console.log(`Eje Y actualizado: 0 - ${maxPesoNeto.toFixed(1)} kg`);
+            console.log(`Eje Y actualizado: 0 - ${pesoNetoMaximo.toFixed(1)} kg (Peso Lleno: ${fullWeight}kg - Peso Vacío: ${emptyWeight}kg)`);
         }
 
         // Actualizar medidor de batería
@@ -940,8 +942,8 @@
                 document.getElementById('digitalWeight').textContent = weight.toFixed(2);
                 
                 // Calcular nivel de líquido basado en configuración
-                const emptyWeight = parseFloat(document.getElementById('emptyWeight').value) || 0;
-                const fullWeight = parseFloat(document.getElementById('fullWeight').value) || 100;
+                const emptyWeight = parseFloat(document.getElementById('emptyWeight').value) || 5;
+                const fullWeight = parseFloat(document.getElementById('fullWeight').value) || 13;
                 
                 if (fullWeight > emptyWeight) {
                     const percentage = Math.max(0, Math.min(100, 
@@ -975,13 +977,22 @@
             const fullWeight = document.getElementById('fullWeight').value;
             
             if (emptyWeight && fullWeight) {
+                const emptyVal = parseFloat(emptyWeight);
+                const fullVal = parseFloat(fullWeight);
+                
+                if (fullVal <= emptyVal) {
+                    alert('El peso lleno debe ser mayor que el peso vacío');
+                    return;
+                }
+                
                 localStorage.setItem('emptyWeight', emptyWeight);
                 localStorage.setItem('fullWeight', fullWeight);
                 
                 // Actualizar el gráfico con los nuevos valores
                 updateYAxisAndGrid();
                 
-                alert('Configuración guardada correctamente');
+                const pesoNeto = fullVal - emptyVal;
+                alert(`Configuración guardada correctamente\nPeso neto máximo: ${pesoNeto.toFixed(1)} kg`);
             } else {
                 alert('Por favor, complete todos los campos');
             }
@@ -1015,7 +1026,7 @@
             const testData = {
                 device_id: 'KG_TEST123',
                 firmware_version: 'v80.23-TEST',
-                weight: (Math.random() * 50 + 10).toFixed(2),
+                weight: (Math.random() * 8 + 5).toFixed(2), // Entre 5kg y 13kg para el ejemplo
                 raw_value: Math.floor(Math.random() * 100000),
                 calibrated: true,
                 tara_set: true,
