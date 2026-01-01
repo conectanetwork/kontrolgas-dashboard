@@ -222,7 +222,7 @@
             z-index: 1;
         }
         
-        /* GRÁFICO DE CONSUMO CON EJES */
+        /* GRÁFICO DE CONSUMO CON EJES DINÁMICOS */
         .chart-card {
             grid-column: 1 / -1;
         }
@@ -256,45 +256,47 @@
             left: 0;
             top: 0;
             bottom: 30px;
-            width: 40px;
+            width: 50px;
             border-right: 2px solid #e2e8f0;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             color: #718096;
         }
 
         .chart-x-axis {
             position: absolute;
             bottom: 0;
-            left: 40px;
+            left: 50px;
             right: 0;
             height: 30px;
             border-top: 2px solid #e2e8f0;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             color: #718096;
         }
 
         .y-label {
             text-align: right;
-            padding-right: 5px;
+            padding-right: 8px;
             line-height: 1;
+            font-weight: 400;
         }
 
         .x-label {
             text-align: center;
             line-height: 1;
+            font-weight: 400;
         }
 
-        /* Líneas de cuadrícula */
+        /* Cuadrícula fina y detallada */
         .chart-grid {
             position: absolute;
             top: 0;
-            left: 40px;
+            left: 50px;
             right: 0;
             bottom: 30px;
         }
@@ -303,16 +305,27 @@
             position: absolute;
             left: 0;
             right: 0;
-            height: 1px;
-            background: #f1f5f9;
+            height: 0.5px;
+            background: #e8edf5;
         }
 
         .grid-line-v {
             position: absolute;
             top: 0;
             bottom: 0;
+            width: 0.5px;
+            background: #e8edf5;
+        }
+
+        /* Líneas principales más visibles */
+        .grid-line-h.major {
+            height: 1px;
+            background: #d1d9e6;
+        }
+
+        .grid-line-v.major {
             width: 1px;
-            background: #f1f5f9;
+            background: #d1d9e6;
         }
         
         /* BARRA DE ESTADO MINIMALISTA */
@@ -568,6 +581,11 @@
             background: #4a5568;
         }
 
+        .dark-theme .grid-line-h.major,
+        .dark-theme .grid-line-v.major {
+            background: #718096;
+        }
+
         .dark-theme .battery-meter {
             background: #4a5568;
             border-color: #718096;
@@ -620,6 +638,18 @@
             .battery-meter {
                 width: 100%;
                 justify-content: center;
+            }
+
+            .chart-y-axis {
+                width: 40px;
+            }
+
+            .chart-x-axis {
+                left: 40px;
+            }
+
+            .chart-grid {
+                left: 40px;
             }
         }
     </style>
@@ -712,16 +742,11 @@
                 <div class="chart-container">
                     <canvas class="chart-canvas" id="consumptionChart"></canvas>
                     
-                    <!-- Ejes y cuadrícula del gráfico -->
+                    <!-- Ejes y cuadrícula del gráfico dinámicos -->
                     <div class="chart-axes">
-                        <!-- Eje Y (Peso en kg) -->
-                        <div class="chart-y-axis">
-                            <div class="y-label">50kg</div>
-                            <div class="y-label">40kg</div>
-                            <div class="y-label">30kg</div>
-                            <div class="y-label">20kg</div>
-                            <div class="y-label">10kg</div>
-                            <div class="y-label">0kg</div>
+                        <!-- Eje Y (Peso neto dinámico) -->
+                        <div class="chart-y-axis" id="yAxis">
+                            <!-- Se genera dinámicamente -->
                         </div>
                         
                         <!-- Eje X (24 horas) -->
@@ -735,24 +760,9 @@
                             <div class="x-label">24:00</div>
                         </div>
                         
-                        <!-- Cuadrícula -->
-                        <div class="chart-grid">
-                            <!-- Líneas horizontales -->
-                            <div class="grid-line-h" style="top: 0%"></div>
-                            <div class="grid-line-h" style="top: 20%"></div>
-                            <div class="grid-line-h" style="top: 40%"></div>
-                            <div class="grid-line-h" style="top: 60%"></div>
-                            <div class="grid-line-h" style="top: 80%"></div>
-                            <div class="grid-line-h" style="top: 100%"></div>
-                            
-                            <!-- Líneas verticales -->
-                            <div class="grid-line-v" style="left: 0%"></div>
-                            <div class="grid-line-v" style="left: 16.66%"></div>
-                            <div class="grid-line-v" style="left: 33.33%"></div>
-                            <div class="grid-line-v" style="left: 50%"></div>
-                            <div class="grid-line-v" style="left: 66.66%"></div>
-                            <div class="grid-line-v" style="left: 83.33%"></div>
-                            <div class="grid-line-v" style="left: 100%"></div>
+                        <!-- Cuadrícula fina -->
+                        <div class="chart-grid" id="gridLines">
+                            <!-- Se genera dinámicamente -->
                         </div>
                     </div>
                 </div>
@@ -799,6 +809,71 @@
             
             const toggle = document.querySelector('.color-scheme-toggle');
             toggle.textContent = isDarkTheme ? '☀️ Tema Claro' : '🌙 Tema Oscuro';
+        }
+
+        // Función para actualizar escala Y y cuadrícula según peso neto máximo
+        function updateYAxisAndGrid() {
+            const emptyWeight = parseFloat(document.getElementById('emptyWeight').value) || 0;
+            const fullWeight = parseFloat(document.getElementById('fullWeight').value) || 50;
+            const maxPesoNeto = Math.max(fullWeight - emptyWeight, 10); // Mínimo 10kg para evitar división por cero
+
+            const yAxis = document.getElementById('yAxis');
+            const gridLines = document.getElementById('gridLines');
+
+            if (!yAxis || !gridLines) return;
+
+            // Limpiar contenido previo
+            yAxis.innerHTML = '';
+            gridLines.innerHTML = '';
+
+            // Número de divisiones principales (líneas gruesas)
+            const divisionesPrincipales = 10;
+            // Número de subdivisiones entre cada línea principal (líneas finas)
+            const subdivisionesPorDivision = 2;
+            const totalLineas = divisionesPrincipales * subdivisionesPorDivision;
+
+            // Crear etiquetas del eje Y (solo en divisiones principales)
+            for (let i = divisionesPrincipales; i >= 0; i--) {
+                const valor = (maxPesoNeto * i / divisionesPrincipales).toFixed(1);
+                const label = document.createElement('div');
+                label.classList.add('y-label');
+                label.textContent = valor + ' kg';
+                yAxis.appendChild(label);
+            }
+
+            // Crear líneas horizontales (cuadrícula)
+            for (let i = 0; i <= totalLineas; i++) {
+                const lineaH = document.createElement('div');
+                lineaH.classList.add('grid-line-h');
+                
+                // Líneas principales cada subdivisionesPorDivision
+                if (i % subdivisionesPorDivision === 0) {
+                    lineaH.classList.add('major');
+                }
+                
+                lineaH.style.top = (i * 100 / totalLineas) + '%';
+                gridLines.appendChild(lineaH);
+            }
+
+            // Líneas verticales para horas (cada 4 horas = 6 intervalos + líneas intermedias)
+            const horasPrincipales = 6; // 0, 4, 8, 12, 16, 20, 24
+            const subdivisionesHoras = 4; // Una línea cada hora
+            const totalLineasV = horasPrincipales * subdivisionesHoras;
+
+            for (let i = 0; i <= totalLineasV; i++) {
+                const lineaV = document.createElement('div');
+                lineaV.classList.add('grid-line-v');
+                
+                // Líneas principales cada 4 horas
+                if (i % subdivisionesHoras === 0) {
+                    lineaV.classList.add('major');
+                }
+                
+                lineaV.style.left = (i * 100 / totalLineasV) + '%';
+                gridLines.appendChild(lineaV);
+            }
+
+            console.log(`Eje Y actualizado: 0 - ${maxPesoNeto.toFixed(1)} kg`);
         }
 
         // Actualizar medidor de batería
@@ -902,6 +977,10 @@
             if (emptyWeight && fullWeight) {
                 localStorage.setItem('emptyWeight', emptyWeight);
                 localStorage.setItem('fullWeight', fullWeight);
+                
+                // Actualizar el gráfico con los nuevos valores
+                updateYAxisAndGrid();
+                
                 alert('Configuración guardada correctamente');
             } else {
                 alert('Por favor, complete todos los campos');
@@ -913,6 +992,10 @@
             document.getElementById('fullWeight').value = '';
             localStorage.removeItem('emptyWeight');
             localStorage.removeItem('fullWeight');
+            
+            // Actualizar el gráfico con valores por defecto
+            updateYAxisAndGrid();
+            
             alert('Configuración restablecida');
         }
 
@@ -922,6 +1005,9 @@
             
             if (emptyWeight) document.getElementById('emptyWeight').value = emptyWeight;
             if (fullWeight) document.getElementById('fullWeight').value = fullWeight;
+            
+            // Actualizar el gráfico con los valores cargados
+            updateYAxisAndGrid();
         }
 
         // Simular datos para pruebas (remover en producción)
@@ -947,10 +1033,14 @@
             updateDashboard(testData);
         }
 
-        // Inicialización
+        // Event listeners para actualizar el gráfico cuando cambien los pesos
         document.addEventListener('DOMContentLoaded', function() {
             loadConfiguration();
             setInterval(checkConnectionStatus, 30000);
+            
+            // Actualizar gráfico cuando cambien los valores de peso
+            document.getElementById('emptyWeight').addEventListener('input', updateYAxisAndGrid);
+            document.getElementById('fullWeight').addEventListener('input', updateYAxisAndGrid);
             
             // Simular datos cada 5 segundos para pruebas
             setInterval(simulateData, 5000);
