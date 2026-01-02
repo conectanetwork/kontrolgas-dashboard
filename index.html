@@ -83,6 +83,72 @@
             font-weight: 400;
         }
 
+        /* CONFIGURACIÓN DINÁMICA DEL DEVICE ID */
+        .device-config {
+            background: white;
+            border-radius: 16px;
+            padding: 25px 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.06);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .device-config-label {
+            font-weight: 500;
+            color: #4a5568;
+            font-size: 0.9rem;
+            letter-spacing: 0.5px;
+        }
+
+        .device-config-input {
+            padding: 12px 18px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 400;
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+            transition: all 0.3s ease;
+            background: #fafbfc;
+            min-width: 250px;
+            text-align: center;
+        }
+
+        .device-config-input:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .device-config-input:valid {
+            border-color: #48bb78;
+        }
+
+        .device-config-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            font-weight: 400;
+        }
+
+        .device-status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #e2e8f0;
+            transition: background 0.3s ease;
+        }
+
+        .device-status-indicator.active {
+            background: #48bb78;
+            animation: pulse 2s infinite;
+        }
+
         .dashboard-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -541,7 +607,8 @@
         .dark-theme .card,
         .dark-theme .header,
         .dark-theme .status-bar,
-        .dark-theme .config-panel {
+        .dark-theme .config-panel,
+        .dark-theme .device-config {
             background: #2d3748;
             border-color: #4a5568;
         }
@@ -562,7 +629,8 @@
             background: #4a5568;
         }
 
-        .dark-theme .input-field {
+        .dark-theme .input-field,
+        .dark-theme .device-config-input {
             background: #4a5568;
             border-color: #718096;
             color: #e2e8f0;
@@ -643,6 +711,15 @@
                 text-align: center;
             }
 
+            .device-config {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .device-config-input {
+                min-width: 200px;
+            }
+
             .btn-group {
                 flex-direction: column;
             }
@@ -714,6 +791,26 @@
             <p class="subtitle">Monitoreo de Gas Profesional</p>
             <div class="optimization-badge">🚀 Conectado a Supabase | Datos en Tiempo Real</div>
         </header>
+
+        <!-- CONFIGURACIÓN DINÁMICA DEL DEVICE ID -->
+        <div class="device-config">
+            <label class="device-config-label" for="deviceIdInput">
+                📱 ID del Dispositivo ESP32:
+            </label>
+            <input 
+                type="text" 
+                id="deviceIdInput" 
+                class="device-config-input"
+                placeholder="Ej: KG_392a13d8" 
+                required
+                pattern="[A-Za-z0-9_-]+"
+                title="Solo letras, números, guiones y guiones bajos"
+            >
+            <div class="device-config-status">
+                <div class="device-status-indicator" id="deviceStatusIndicator"></div>
+                <span id="deviceStatusText">Ingrese Device ID</span>
+            </div>
+        </div>
 
         <div class="status-bar">
             <div class="status-item">
@@ -820,13 +917,13 @@
         // ⚠️ CONFIGURACIÓN DE SUPABASE - REEMPLAZAR CON TUS DATOS REALES
         const SUPABASE_URL = 'https://TU-PROYECTO.supabase.co';         // ⚠️ CAMBIAR POR TU URL
         const SUPABASE_ANON_KEY = 'TU-ANON-KEY-AQUI';                   // ⚠️ CAMBIAR POR TU ANON KEY
-        const ESP32_DEVICE_ID = 'KG_392a13d8';                          // ⚠️ CAMBIAR POR TU DEVICE_ID
 
         // Variables globales
         let isDarkTheme = false;
         let lastDataReceived = null;
         let supabaseClient = null;
         let isSupabaseConnected = false;
+        let ESP32_DEVICE_ID = ''; // Variable dinámica para device_id
 
         // Inicializar cliente de Supabase
         function initSupabase() {
@@ -856,10 +953,76 @@
             statusElement.innerHTML = message;
         }
 
+        // Actualizar estado del device ID
+        function updateDeviceStatus(status, message) {
+            const indicator = document.getElementById('deviceStatusIndicator');
+            const text = document.getElementById('deviceStatusText');
+            
+            indicator.className = `device-status-indicator ${status}`;
+            text.textContent = message;
+        }
+
+        // Configurar manejo dinámico del device ID
+        function setupDeviceIdInput() {
+            const input = document.getElementById('deviceIdInput');
+            const savedDeviceId = localStorage.getItem('esp32_device_id') || '';
+
+            // Cargar valor guardado
+            if (savedDeviceId) {
+                input.value = savedDeviceId;
+                ESP32_DEVICE_ID = savedDeviceId;
+                updateDeviceStatus('active', `Conectado: ${savedDeviceId}`);
+                
+                // Si hay device_id guardado y Supabase está conectado, obtener datos
+                if (isSupabaseConnected) {
+                    updateDashboardWithRealData();
+                }
+            } else {
+                updateDeviceStatus('', 'Ingrese Device ID');
+            }
+
+            // Escuchar cambios en el input
+            input.addEventListener('input', function() {
+                const newId = this.value.trim();
+                
+                if (newId.length === 0) {
+                    ESP32_DEVICE_ID = '';
+                    updateDeviceStatus('', 'Ingrese Device ID');
+                    localStorage.removeItem('esp32_device_id');
+                } else if (newId.length >= 3) {
+                    ESP32_DEVICE_ID = newId;
+                    localStorage.setItem('esp32_device_id', newId);
+                    updateDeviceStatus('active', `Conectado: ${newId}`);
+                    
+                    // Actualizar datos inmediatamente
+                    if (isSupabaseConnected) {
+                        updateDashboardWithRealData();
+                        console.log('📱 Device ID actualizado a:', newId);
+                    }
+                } else {
+                    updateDeviceStatus('', 'Mínimo 3 caracteres');
+                }
+            });
+
+            // Validación en tiempo real
+            input.addEventListener('keypress', function(e) {
+                const char = String.fromCharCode(e.which);
+                if (!/[A-Za-z0-9_-]/.test(char)) {
+                    e.preventDefault();
+                }
+            });
+        }
+
         // Función para obtener datos reales del ESP32 desde Supabase
         async function fetchRealESP32Data() {
             if (!isSupabaseConnected || !supabaseClient) {
                 console.log('⚠️ Supabase no está conectado');
+                return null;
+            }
+
+            if (!ESP32_DEVICE_ID || ESP32_DEVICE_ID.length === 0) {
+                console.log('⚠️ No hay device_id configurado para consulta');
+                updateDeviceStatus('', 'Ingrese Device ID');
                 return null;
             }
 
@@ -874,21 +1037,25 @@
                 if (error) {
                     console.error('❌ Error consultando Supabase:', error);
                     updateSupabaseStatus('error', '❌ Error consultando datos');
+                    updateDeviceStatus('', `Error: ${ESP32_DEVICE_ID}`);
                     return null;
                 }
 
                 if (data && data.length > 0) {
                     console.log('✅ Datos obtenidos de Supabase:', data[0]);
                     updateSupabaseStatus('connected', '✅ Datos actualizados');
+                    updateDeviceStatus('active', `Activo: ${ESP32_DEVICE_ID}`);
                     return data[0];
                 } else {
                     console.log('⚠️ No se encontraron datos para device_id:', ESP32_DEVICE_ID);
                     updateSupabaseStatus('error', '⚠️ Sin datos del ESP32');
+                    updateDeviceStatus('', `Sin datos: ${ESP32_DEVICE_ID}`);
                     return null;
                 }
             } catch (error) {
                 console.error('❌ Error inesperado consultando Supabase:', error);
                 updateSupabaseStatus('error', '❌ Error de conexión');
+                updateDeviceStatus('', `Error: ${ESP32_DEVICE_ID}`);
                 return null;
             }
         }
@@ -1015,7 +1182,7 @@
             // Actualizar estado de conexión
             const statusElement = document.getElementById('connectionStatus');
             const indicator = document.getElementById('connectionIndicator');
-            statusElement.textContent = 'Conectado - ESP32';
+            statusElement.textContent = `Conectado - ${ESP32_DEVICE_ID}`;
             indicator.className = 'status-indicator status-connected';
 
             // Actualizar peso digital
@@ -1125,15 +1292,16 @@
                         { 
                             event: '*', 
                             schema: 'public', 
-                            table: 'esp32_data',
-                            filter: `device_id=eq.${ESP32_DEVICE_ID}`
+                            table: 'esp32_data'
                         }, 
                         (payload) => {
                             console.log('🔄 Cambio detectado en Supabase:', payload);
-                            if (payload.new) {
+                            
+                            // Solo procesar si es del device_id actual
+                            if (payload.new && payload.new.device_id === ESP32_DEVICE_ID) {
                                 updateDashboard(payload.new);
-                            } else {
-                                // Si no hay payload.new, hacer consulta manual
+                            } else if (payload.old && payload.old.device_id === ESP32_DEVICE_ID) {
+                                // Si se eliminó un registro del device actual, actualizar
                                 updateDashboardWithRealData();
                             }
                         }
@@ -1155,6 +1323,9 @@
             // Inicializar Supabase
             const supabaseInitialized = initSupabase();
 
+            // Configurar manejo dinámico del device ID
+            setupDeviceIdInput();
+
             // Cargar configuración guardada
             loadConfiguration();
 
@@ -1166,11 +1337,12 @@
             document.getElementById('fullWeight').addEventListener('input', updateYAxisAndGrid);
 
             if (supabaseInitialized) {
-                // Obtener datos iniciales
-                updateDashboardWithRealData();
-
                 // Configurar actualización periódica cada 10 segundos
-                setInterval(updateDashboardWithRealData, 10000);
+                setInterval(() => {
+                    if (ESP32_DEVICE_ID && ESP32_DEVICE_ID.length > 0) {
+                        updateDashboardWithRealData();
+                    }
+                }, 10000);
 
                 // Configurar suscripción en tiempo real
                 setupRealtimeSubscription();
